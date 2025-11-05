@@ -46,8 +46,8 @@ class Game:
         
         # 游戏结束后显示结束画面
         self.show_end_screen()
-
-    def update(self):
+#################not use##############################
+    def update_not_use(self):
         """更新游戏状态"""
         if not self.game_over:
             self.all_group.update()  # 更新所有精灵
@@ -66,29 +66,69 @@ class Game:
             if self.level.mario.dead:
                 self.game_over = True  # 标记游戏结束
                 self.playing = False   # 停止游戏主循环
+                
+##############################################################               
+    def update(self):
+        """更新游戏状态 - 支持双向摄像机移动"""
+        if not self.game_over:
+            self.all_group.update()  # 更新所有精灵
+            self.level.update()  # 更新关卡
+            
+            # 双向摄像机跟随系统
+            self.update_camera()
+            
+            # 检查马里奥是否死亡
+            if self.level.mario.dead:
+                self.game_over = True  # 标记游戏结束
+                self.playing = False   # 停止游戏主循环
 
+    def update_camera(self):
+        """更新摄像机位置 - 支持左右双向移动"""
+        # 向右移动时的摄像机跟随
+        if self.level.mario.vel.x > 0:  # 向右移动
+            if self.level.mario.pos.x > WIDTH * 0.55 + self.viewpoint.x:
+                self.viewpoint.x += int(self.level.mario.vel.x * 1.1)
+        
+        # 向左移动时的摄像机跟随（新增）
+        elif self.level.mario.vel.x < 0:  # 向左移动
+            if self.level.mario.pos.x < WIDTH * 0.25 + self.viewpoint.x:
+                self.viewpoint.x += int(self.level.mario.vel.x * 1.1)  # 注意这里是加负值
+        
+        # 确保摄像机不会移出地图边界,待研究
+        # self.clamp_camera_position()
+
+    def clamp_camera_position(self):
+        """限制摄像机位置，确保不会超出地图边界"""
+        # 摄像机左边界（不能小于0）
+        if self.viewpoint.x < 0:
+            self.viewpoint.x = 0
+        
+        # 摄像机右边界（不能超过地图宽度减去屏幕宽度）
+        map_width = self.background.get_width()  # 背景图片宽度就是地图宽度
+        max_camera_x = map_width - WIDTH
+        if self.viewpoint.x > max_camera_x:
+            self.viewpoint.x = max_camera_x
+##############################################################
     def events(self):
         """处理游戏事件"""
         for event in pg.event.get():  # 遍历所有事件
             if event.type == pg.QUIT:  # 如果点击关闭窗口
                 self.playing = False  # 结束游戏
-            # elif event.type == pg.MOUSEBUTTONDOWN and self.game_over:
-                # 在结束画面中处理鼠标点击
-                # self.handle_end_screen_click(event.pos)
-
+            
     def draw(self):
-        """绘制游戏画面"""
+        """绘制游戏画面 - 优化版本"""
         if not self.game_over:
-            # 正常游戏绘制
-            pg.display.flip()  # 更新整个显示表面
-            
-            # 创建背景的干净副本用于绘制精灵
-            self.background_clean = self.background.copy()
-            self.all_group.draw(self.background_clean)  # 在背景副本上绘制所有精灵
-            
-            # 将背景的可见部分绘制到屏幕上
+            # 方法1: 直接绘制背景和精灵到屏幕（推荐）
+            self.screen.fill((255,255,255))
+            #清空屏幕，以免出现重影情况
             self.screen.blit(self.background, (0, 0), self.viewpoint)
-            self.all_group.draw(self.screen)  # 在屏幕上绘制所有精灵
+            #将背景的可见部分绘制到屏幕上
+            self.all_group.draw(self.screen)
+            # 在屏幕上绘制所有精灵
+            pg.display.flip()
+            #刷新
+            
+            
 
     def show_start_screen(self):
         """显示开始屏幕（暂未实现）"""
@@ -104,56 +144,8 @@ class Game:
         
         pass
 
-    def show_end_screen_past(self):
-        """显示结束屏幕，包含背景和按钮"""
-        # 加载结束画面背景
-        end_background = load_image('final.png')
-        end_background = pg.transform.scale(end_background, (WIDTH, HEIGHT))
-        
-        # 加载按钮图片
-        restart_img = load_image('restart.png')
-        exit_img = load_image('exit.png')
-        
-        # 计算按钮位置（垂直排列在屏幕中央）
-        button_width = restart_img.get_width()
-        button_height = restart_img.get_height()
-        
-        restart_pos = ((WIDTH - button_width) // 2, HEIGHT // 2 - button_height - 10)
-        exit_pos = ((WIDTH - button_width) // 2, HEIGHT // 2 + 10)
-        
-        # 创建按钮矩形区域用于点击检测
-        self.restart_rect = pg.Rect(restart_pos[0], restart_pos[1], button_width, button_height)
-        self.exit_rect = pg.Rect(exit_pos[0], exit_pos[1], button_width, button_height)
-        
-        # 结束画面循环
-        end_screen = True
-        while end_screen:
-            self.clock.tick(FPS)
-            
-            # 处理事件
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    end_screen = False
-                elif event.type == pg.MOUSEBUTTONDOWN:
-                    # 检查按钮点击
-                    if self.restart_rect.collidepoint(event.pos):
-                        # 重新开始游戏
-                        self.restart_game()
-                        end_screen = False
-                    elif self.exit_rect.collidepoint(event.pos):
-                        # 退出游戏
-                        end_screen = False
-            
-            # 绘制结束画面
-            self.screen.blit(end_background, (0, 0))
-            self.screen.blit(restart_img, restart_pos)
-            self.screen.blit(exit_img, exit_pos)
-            
-            pg.display.flip()
-        
-        pg.quit()
 
-    def show_end_screen_past2(self):
+    def show_end_screen(self):
         """显示结束屏幕，包含背景、统一大小的按钮和视觉效果"""
         # 加载结束画面背景
         end_background = load_image('final.png')
@@ -162,27 +154,28 @@ class Game:
         # 加载按钮图片
         restart_img_orig = load_image('restart.png')
         exit_img_orig = load_image('exit.png')
-    
-    # 统一按钮尺寸 - 使用两个按钮中较大的尺寸
+        
+        # 使用两个按钮中较大的尺寸
         max_width = max(restart_img_orig.get_width(), exit_img_orig.get_width())
         max_height = max(restart_img_orig.get_height(), exit_img_orig.get_height())
-    
-        # 统一按钮尺寸（可以改变系数）
-        button_width = int(max_width * 0.7)
-        button_height = int(max_height * 0.7)
-    
-        # 缩放按钮图片到统一尺寸
-        restart_img = pg.transform.scale(restart_img_orig, (button_width, button_height))
-        exit_img = pg.transform.scale(exit_img_orig, (button_width, button_height))
-    
+        
+        # 统一按钮尺寸
+        button_width = int(max_width*0.7)
+        button_height = int(max_height*0.7)
+        
+        # 统一按钮尺寸
+        restart_img=self.button_size(restart_img_orig,button_height,button_width)
+        exit_img=self.button_size(exit_img_orig,button_height,button_width)
+        
+            
     # 计算按钮位置（垂直排列在屏幕中央）
         restart_pos = ((WIDTH - button_width) // 2, HEIGHT // 2 - button_height - 20)
         exit_pos = ((WIDTH - button_width) // 2, HEIGHT // 2 + 20)
     
-    # 创建按钮矩形区域用于点击检测
+    # 创建按钮矩形区域用于点击检测x,y,width,height
         self.restart_rect = pg.Rect(restart_pos[0], restart_pos[1], button_width, button_height)
         self.exit_rect = pg.Rect(exit_pos[0], exit_pos[1], button_width, button_height)
-    
+    ##############################################
     # 视觉效果变量
         border_thickness = 3  # 边框厚度
         blink_interval = 500  # 闪烁间隔（毫秒）
@@ -192,7 +185,7 @@ class Game:
         hover_exit = False    # 鼠标悬停在退出按钮上
     
     # 结束画面循环
-        end_screen = True
+        end_screen = True     #false为结束循环
         while end_screen:
             current_time = pg.time.get_ticks()
             self.clock.tick(FPS)
@@ -201,34 +194,41 @@ class Game:
             mouse_pos = pg.mouse.get_pos()
         
         # 更新悬停状态
+        #restart_rect, exit_rect 已经在上面定义好了
             hover_restart = self.restart_rect.collidepoint(mouse_pos)
             hover_exit = self.exit_rect.collidepoint(mouse_pos)
         
         # 处理事件
             for event in pg.event.get():
+                #用户差掉了窗口
                 if event.type == pg.QUIT:
-                    end_screen = False
+                     end_screen = False
+                    
                 elif event.type == pg.MOUSEBUTTONDOWN:
                 # 检查按钮点击
                     if self.restart_rect.collidepoint(event.pos):
                     # 重新开始游戏
                         self.restart_game()
                         end_screen = False
+                        
                     elif self.exit_rect.collidepoint(event.pos):
                     # 退出游戏
                         end_screen = False
-        
-        # 闪烁效果 - 每500毫秒切换一次边框显示
-            if current_time - last_blink_time > blink_interval:
-                show_border = not show_border
-                last_blink_time = current_time
-        
+
+            if not end_screen:
+                break
         # 绘制结束画面
             self.screen.blit(end_background, (0, 0))
         
         # 绘制按钮
             self.screen.blit(restart_img, restart_pos)
             self.screen.blit(exit_img, exit_pos)
+        
+        
+        # 闪烁效果 - 每500毫秒切换一次边框显示
+            if current_time - last_blink_time > blink_interval:
+                show_border = not show_border
+                last_blink_time = current_time
         
         # 绘制边框效果
             if show_border:
@@ -237,254 +237,111 @@ class Game:
                 pg.draw.rect(self.screen, border_color, self.restart_rect, border_thickness)
             
             # 退出按钮边框
-                border_color = (255, 215, 0) if hover_exit else (255, 255, 255)  # 悬停时金色，否则白色
+                border_color = (255, 0, 0) if hover_exit else (255, 255, 255)  # 悬停时金色，否则白色
                 pg.draw.rect(self.screen, border_color, self.exit_rect, border_thickness)
         
         # 悬停效果 - 按钮轻微放大
             if hover_restart:
                 # 绘制放大的重新开始按钮
-                hover_scale = 1.1
-                hover_width = int(button_width * hover_scale)
-                hover_height = int(button_height * hover_scale)
-                hover_restart_img = pg.transform.scale(restart_img_orig, (hover_width, hover_height))
-                hover_pos = (restart_pos[0] - (hover_width - button_width) // 2, 
-                        restart_pos[1] - (hover_height - button_height) // 2)
-                self.screen.blit(hover_restart_img, hover_pos)
+                self.draw_button_with_hover_effect(restart_img, restart_pos, button_width, button_height)
         
             if hover_exit:
             # 绘制放大的退出按钮
-                hover_scale = 1.1
-                hover_width = int(button_width * hover_scale)
-                hover_height = int(button_height * hover_scale)
-                hover_exit_img = pg.transform.scale(exit_img_orig, (hover_width, hover_height))
-                hover_pos = (exit_pos[0] - (hover_width - button_width) // 2, 
-                        exit_pos[1] - (hover_height - button_height) // 2)
-                self.screen.blit(hover_exit_img, hover_pos)
-        
+                self.draw_button_with_hover_effect(exit_img, exit_pos, button_width, button_height)
+
+        # 更新显示
             pg.display.flip()
     
         pg.quit()
 
-    def show_end_screen(self):
-        """显示结束屏幕，包含背景和按钮效果"""
-        # 加载资源
-        end_background, restart_img_orig, exit_img_orig = self.load_end_screen_resources()
-        
-        # 统一按钮尺寸
-        button_width, button_height, restart_img, exit_img = self.unify_button_size(
-            restart_img_orig, exit_img_orig, scale_factor=0.7
-        )
-        
-        # 设置按钮位置
-        restart_pos, exit_pos, restart_rect, exit_rect = self.set_button_positions(
-            button_width, button_height
-        )
-        
-        # 结束画面主循环
-        self.run_end_screen_loop(
-            end_background, restart_img_orig, exit_img_orig,
-            restart_img, exit_img, restart_pos, exit_pos,
-            restart_rect, exit_rect, button_width, button_height
-        )
-        
-        pg.quit()
 
-    def load_end_screen_resources(self):
-        """加载结束画面所需资源"""
-        # 加载结束画面背景
-        end_background = load_image('final.png')
-        end_background = pg.transform.scale(end_background, (WIDTH, HEIGHT))
-        
-        # 加载按钮图片
-        restart_img_orig = load_image('restart.png')
-        exit_img_orig = load_image('exit.png')
-        
-        return end_background, restart_img_orig, exit_img_orig
-
-    def unify_button_size(self, restart_img_orig, exit_img_orig, scale_factor=0.7):
-        """统一按钮尺寸"""
-        # 使用两个按钮中较大的尺寸
-        max_width = max(restart_img_orig.get_width(), exit_img_orig.get_width())
-        max_height = max(restart_img_orig.get_height(), exit_img_orig.get_height())
-        
+    def button_size(self, img_orig, height, width, scale_factor=0):
+        """统一按钮尺寸
+        scale_factor: 缩放比例，<=0表示使用传入尺寸
+        0<scale_factor>0表示按比例缩放
+        """
+        if scale_factor <= 0:
         # 统一按钮尺寸
-        button_width = int(max_width * scale_factor)
-        button_height = int(max_height * scale_factor)
-        
+            button_width = int(width)
+            button_height = int(height)
+            
+        elif scale_factor > 0:
+            button_width = int(img_orig.get_width() * scale_factor)
+            button_height = int(img_orig.get_height() * scale_factor)
         # 缩放按钮图片到统一尺寸
-        restart_img = pg.transform.scale(restart_img_orig, (button_width, button_height))
-        exit_img = pg.transform.scale(exit_img_orig, (button_width, button_height))
+        button_img = pg.transform.scale(img_orig, (button_width, button_height))
         
-        return button_width, button_height, restart_img, exit_img
+        return button_img
 
-    def set_button_positions(self, button_width, button_height):
-        """设置按钮位置"""
-        # 计算按钮位置（垂直排列在屏幕中央）
-        restart_pos = ((WIDTH - button_width) // 2, HEIGHT // 2 - button_height - 20)
-        exit_pos = ((WIDTH - button_width) // 2, HEIGHT // 2 + 20)
-        
-        # 创建按钮矩形区域
-        restart_rect = pg.Rect(restart_pos[0], restart_pos[1], button_width, button_height)
-        exit_rect = pg.Rect(exit_pos[0], exit_pos[1], button_width, button_height)
-        
-        return restart_pos, exit_pos, restart_rect, exit_rect
 
-    def run_end_screen_loop(self, end_background, restart_img_orig, exit_img_orig,
-                        restart_img, exit_img, restart_pos, exit_pos,
-                        restart_rect, exit_rect, button_width, button_height):
-        """运行结束画面主循环"""
-        # 视觉效果变量
-        border_thickness = 3
-        blink_interval = 500
-        last_blink_time = pg.time.get_ticks()
-        show_border = True
-        
-        # 结束画面循环
-        end_screen = True
-        while end_screen:
-            current_time = pg.time.get_ticks()
-            self.clock.tick(FPS)
-            
-            # 处理事件
-            end_screen = self.handle_end_screen_events(restart_rect, exit_rect)
-            if not end_screen:
-                break
-                
-            # 获取鼠标位置和悬停状态
-            mouse_pos = pg.mouse.get_pos()
-            hover_restart = restart_rect.collidepoint(mouse_pos)
-            hover_exit = exit_rect.collidepoint(mouse_pos)
-            
-            # 更新闪烁效果
-            show_border, last_blink_time = self.update_blink_effect(
-                current_time, last_blink_time, blink_interval, show_border
-            )
-            
-            # 绘制结束画面
-            self.draw_end_screen(
-                end_background, restart_img, exit_img, restart_pos, exit_pos,
-                restart_rect, exit_rect, hover_restart, hover_exit,
-                show_border, border_thickness,
-                restart_img_orig, exit_img_orig, button_width, button_height
-            )
-            
-            pg.display.flip()
 
-    def handle_end_screen_events(self, restart_rect, exit_rect):
-        """处理结束画面事件"""
-        for event in pg.event.get():
-            if event.type == pg.QUIT:
-                return False
-            elif event.type == pg.MOUSEBUTTONDOWN:
-                # 检查按钮点击
-                if restart_rect.collidepoint(event.pos):
-                    # 重新开始游戏
-                    self.restart_game()
-                    return False
-                elif exit_rect.collidepoint(event.pos):
-                    # 退出游戏
-                    return False
-        return True
-
-    def update_blink_effect(self, current_time, last_blink_time, blink_interval, show_border):
-        """更新边框闪烁效果"""
-        if current_time - last_blink_time > blink_interval:
-            show_border = not show_border
-            last_blink_time = current_time
-        return show_border, last_blink_time
-
-    def draw_end_screen(self, end_background, restart_img, exit_img, 
-                    restart_pos, exit_pos, restart_rect, exit_rect,
-                    hover_restart, hover_exit, show_border, border_thickness,
-                    restart_img_orig, exit_img_orig, button_width, button_height):
-        """绘制结束画面"""
-        # 绘制背景
-        self.screen.blit(end_background, (0, 0))
-        
-        # 应用按钮效果
-        self.apply_button_effects(
-            restart_img, exit_img, restart_pos, exit_pos,
-            restart_rect, exit_rect, hover_restart, hover_exit,
-            show_border, border_thickness,
-            restart_img_orig, exit_img_orig, button_width, button_height
-        )
-
-    def apply_button_effects(self, restart_img, exit_img, restart_pos, exit_pos,
-                            restart_rect, exit_rect, hover_restart, hover_exit,
-                            show_border, border_thickness,
-                            restart_img_orig, exit_img_orig, button_width, button_height):
-        """应用按钮效果（放大和边框闪烁）"""
-        # 绘制正常按钮或悬停放大按钮
-        self.draw_button_with_hover_effect(
-            restart_img, restart_img_orig, restart_pos, restart_rect,
-            hover_restart, button_width, button_height
-        )
-        
-        self.draw_button_with_hover_effect(
-            exit_img, exit_img_orig, exit_pos, exit_rect,
-            hover_exit, button_width, button_height
-        )
-        
-        # 绘制边框效果
-        if show_border:
-            self.draw_button_borders(
-                restart_rect, exit_rect, hover_restart, hover_exit, border_thickness
-            )
-
-    def draw_button_with_hover_effect(self, button_img, button_img_orig, button_pos, button_rect,
-                                    is_hovered, button_width, button_height):
+    def draw_button_with_hover_effect(self, button_img, button_pos, button_width, button_height):
         """绘制按钮并应用悬停放大效果"""
-        if is_hovered:
             # 绘制放大的按钮
-            hover_scale = 1.1
-            hover_width = int(button_width * hover_scale)
-            hover_height = int(button_height * hover_scale)
-            hover_img = pg.transform.scale(button_img_orig, (hover_width, hover_height))
-            hover_pos = (
-                button_pos[0] - (hover_width - button_width) // 2,
-                button_pos[1] - (hover_height - button_height) // 2
-            )
-            self.screen.blit(hover_img, hover_pos)
-        else:
-            # 绘制正常按钮
-            self.screen.blit(button_img, button_pos)
-
-    def draw_button_borders(self, restart_rect, exit_rect, hover_restart, hover_exit, border_thickness):
-        """绘制按钮边框效果"""
-        # 重新开始按钮边框
-        border_color = (255, 215, 0) if hover_restart else (255, 255, 255)  # 悬停时金色，否则白色
-        pg.draw.rect(self.screen, border_color, restart_rect, border_thickness)
-        
-        # 退出按钮边框
-        border_color = (255, 215, 0) if hover_exit else (255, 255, 255)  # 悬停时金色，否则白色
-        pg.draw.rect(self.screen, border_color, exit_rect, border_thickness)   
-        
-        
-        
-        
-        
+        hover_scale = 1.1
+        hover_width = int(button_width * hover_scale)
+        hover_height = int(button_height * hover_scale)
+        hover_img = pg.transform.scale(button_img, (hover_width, hover_height))
+        hover_pos = (
+            button_pos[0] - (hover_width - button_width) // 2,
+            button_pos[1] - (hover_height - button_height) // 2
+        )
+        self.screen.blit(hover_img, hover_pos)        
         
 
-        def handle_end_screen_click(self, pos):
-            """处理结束画面的鼠标点击事件"""
-            if self.restart_rect.collidepoint(pos):
-                self.restart_game()
-            elif self.exit_rect.collidepoint(pos):
-                self.playing = False
 
-        def restart_game(self):
-            """重新开始游戏"""
-            # 重置游戏状态
-            self.playing = True
-            self.game_over = False
-            self.viewpoint = self.rect
+    def restart_game(self):
+        """重新开始游戏"""
+        # 重置  游戏状态
+        self.cleanup_before_restart()
+        
+        self.playing = True
+        self.game_over = False
+        self.viewpoint = self.rect
+        
+        self.clear_display()  # 清空显示画面
+        
+        self.reinitialize_game()
+        
+        # 重新初始化游戏
+        # self.new()  # 重新创建关卡
             
-            # 重新初始化游戏
-            self.all_group.empty()  # 清空精灵组
-            self.new()  # 重新创建关卡
-            
-            # 重新开始游戏循环
-            self.run()
+        # 重新开始游戏循环
+        self.run()
+        
+    def cleanup_before_restart(self):
+        """在重新开始游戏前进行必要的清理工作"""
+        # 这里可以添加任何需要在重新开始游戏前执行的清理代码
+        pg.event.clear()  # 清除事件队列
+        self.all_group.empty()  # 清空精灵组
+        
+    def clear_display(self):
+        """清空显示画面"""
+        # 填充白色背景
+        self.screen.fill((255,255,255))
+        
+        # 可选: 显示"重新开始..."提示
+        font = pg.font.Font(None, 36)
+        text = font.render("マリオゲーム、再開...", True, (111,111,111))
+        text_rect = text.get_rect(center=(WIDTH//2, HEIGHT//2))
+        self.screen.blit(text, text_rect)
+        
+        # 立即更新显示
+        pg.display.flip()
+        
+        # 短暂延迟让玩家看到提示
+        pg.time.delay(500)
+
+    def reinitialize_game(self):
+        """重新初始化游戏"""
+        # 重新创建关卡
+        self.level = Level()
+        
+        # 重新添加精灵到组
+        self.all_group.add(self.level.mario)
+        
+        # 重新设置摄像机位置
+        self.viewpoint = self.screen.get_rect()
 
 
 # 游戏启动代码

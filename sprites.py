@@ -167,9 +167,13 @@ class Mario(pg.sprite.Sprite):
 class Collider(pg.sprite.Sprite):
     """碰撞体类，用于检测碰撞的不可见区域"""
     
-    def __init__(self, x, y, width, height):
+    def __init__(self, x, y, width, height,color=None):
         pg.sprite.Sprite.__init__(self)  # 调用父类构造函数
         self.image = pg.Surface((width, height)).convert()  # 创建碰撞区域表面
+        if color:
+            self.image.fill(color)  # 有颜色就填充
+        else:
+            self.image.set_alpha(0)  # 否则透明（保持原有行为）
         self.rect = self.image.get_rect()  # 获取矩形区域
         self.rect.x = x  # 设置x坐标
         self.rect.y = y  # 设置y坐标
