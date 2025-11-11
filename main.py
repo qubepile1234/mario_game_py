@@ -60,7 +60,7 @@ class Game:
             # 当马里奥向右移动时，滚动视口（摄像机跟随）
             if self.level.mario.vel.x > 0:
                 if self.level.mario.pos.x > WIDTH * 0.55 + self.viewpoint.x:
-                    self.viewpoint.x += int(self.level.mario.vel.x * 1.1)  # 视口以稍快速度跟随
+                    self.viewpoint.x += int(self.level.mario.vel.x * 1.3)  # 视口以稍快速度跟随
             
             # 检查马里奥是否死亡
             if self.level.mario.dead:
@@ -84,28 +84,32 @@ class Game:
 
     def update_camera(self):
         """更新摄像机位置 - 支持左右双向移动"""
+        
         # 向右移动时的摄像机跟随
         if self.level.mario.vel.x > 0:  # 向右移动
             if self.level.mario.pos.x > WIDTH * 0.55 + self.viewpoint.x:
-                self.viewpoint.x += int(self.level.mario.vel.x * 1.1)
+                self.viewpoint.x += int(self.level.mario.vel.x * 1.5)
+                # self.viewpoint.x = int(self.level.mario.pos.x)  # 固定速度跟随
         
         # 向左移动时的摄像机跟随（新增）
         elif self.level.mario.vel.x < 0:  # 向左移动
             if self.level.mario.pos.x < WIDTH * 0.25 + self.viewpoint.x:
-                self.viewpoint.x += int(self.level.mario.vel.x * 1.1)  # 注意这里是加负值
+                self.viewpoint.x += int(self.level.mario.vel.x * 1.5)  # 注意这里是加负值
         
         # 确保摄像机不会移出地图边界,待研究
-        # self.clamp_camera_position()
+        self.clamp_camera_position()
 
     def clamp_camera_position(self):
-        """限制摄像机位置，确保不会超出地图边界"""
+        """限制摄像机位置，确保不会超出地图边界+-20"""
         # 摄像机左边界（不能小于0）
-        if self.viewpoint.x < 0:
-            self.viewpoint.x = 0
-        
+        min_camera_x = 0 - 20#相机能看到地图边界-20
+        if self.viewpoint.x < min_camera_x:
+            self.viewpoint.x = min_camera_x
+
         # 摄像机右边界（不能超过地图宽度减去屏幕宽度）
         map_width = self.background.get_width()  # 背景图片宽度就是地图宽度
-        max_camera_x = map_width - WIDTH
+        # max_camera_x = map_width - WIDTH
+        max_camera_x = map_width + 20 #相机能看到地图边界+20
         if self.viewpoint.x > max_camera_x:
             self.viewpoint.x = max_camera_x
 ##############################################################
@@ -118,8 +122,7 @@ class Game:
     def draw(self):
         """绘制游戏画面 - 优化版本"""
         if not self.game_over:
-            # 方法1: 直接绘制背景和精灵到屏幕（推荐）
-            self.screen.fill((255,255,255))
+            self.screen.fill(WHITE)
             #清空屏幕，以免出现重影情况
             self.screen.blit(self.background, (0, 0), self.viewpoint)
             #将背景的可见部分绘制到屏幕上

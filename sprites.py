@@ -30,37 +30,53 @@ class Mario(pg.sprite.Sprite):
         
         # 向右移动处理
         if keys[pg.K_RIGHT]:
-            self.walk('right')  # 播放向右行走动画
+            # self.walk('right')  # 按右键播放向右行走动画
             if self.vel.x > 0:  # 如果已经在向右移动
-                self.acc.x = TURNAROUND  # 使用转向加速度
+                self.acc.x = ACC  # 使用转向加速度
             if self.vel.x <= 0:  # 如果静止或向左移动
-                self.acc.x = ACC  # 使用正常加速度
-            self.pos.x += 5  # 直接移动位置（可能用于碰撞检测前的预移动）
+                self.acc.x = TURNAROUND  # 使用正常加速度
         
         # 向左移动处理
         elif keys[pg.K_LEFT]:
-            self.walk('left')  # 播放向左行走动画
+            # self.walk('left')  # 是按左键播放向左行走动画
             if self.vel.x < 0:  # 如果已经在向左移动
-                self.acc.x = -TURNAROUND  # 使用转向加速度
-            if self.vel.x >= 0:  # 如果静止或向右移动
                 self.acc.x = -ACC  # 使用正常加速度
-        
-        # 没有水平移动按键
-        else:
-            self.image_index = 0  # 切换到站立帧
+            if self.vel.x >= 0:  # 如果静止或向右移动
+                self.acc.x = -TURNAROUND  # 使用转向加速度
+        speedx=self.vel.x
+        ax=self.acc.x
+        if int(speedx + ax) > 0:  # 如果已经在向右移动
+                ax -= FRICTION  # 速度大于0减速
+                if int(speedx + ax) > 0:  # 减速后如果速度小于0
+                    speedx = 0  # 直接设为0，防止反向移动
+        elif int(speedx + ax) < 0:  # 如果向左移动
+                ax += FRICTION  # 速度小于0减速
+                if int(speedx + ax) > 0:  # 减速后如果速度大于0
+                    speedx = 0  # 直接设为0，防止反向移动
         
         # 限制最大速度
-        if abs(self.vel.x) < MAX_SPEED:
+        if abs(self.vel.x+self.acc.x) < MAX_SPEED:
             self.vel.x += self.acc.x  # 在限速内增加速度
         elif keys[pg.K_LEFT]:
             self.vel.x = -MAX_SPEED  # 达到向左最大速度
         elif keys[pg.K_RIGHT]:
             self.vel.x = MAX_SPEED  # 达到向右最大速度
         
+        if speedx==0:
+            self.vel.x = speedx  # 直接设为0，防止反向移动
+        
+        if self.vel.x > 0:  # 如果已经在向右移动
+            self.walk('right') 
+        elif self.vel.x < 0:  # 如果向左移动
+            self.walk('left') 
+        else:                     #没有水平移动
+            self.image_index = 0  # 切换到站立帧
+        
         # 跳跃处理
         if keys[pg.K_SPACE]:
             if self.landing:  # 只有在地面上才能跳跃
                 self.vel.y = -JUMP  # 设置跳跃速度
+                #获得向上的加速度,质量为1,故加速度=速度
         
         # 空中状态处理
         if not self.landing:
@@ -68,14 +84,17 @@ class Mario(pg.sprite.Sprite):
         
         self.image = self.frames[self.image_index]  # 更新当前显示图像
         
-        # 物理计算：摩擦力
-        self.acc.x += self.vel.x * FRICTION
-        # 物理计算：速度更新
-        self.vel += self.acc
-        # 物理计算：位置更新（使用运动学公式）
-        self.pos += self.vel + 0.5 * self.acc
+        self.vel.y += GRAVITY
+        if self.pos.y > 0:
+            self.vel.y += GRAVITY  # 模拟下落速度
+        else:
+            self.vel.y = -1 * int(self.vel.y)  # 着陆时垂直速度归零
 
-        # 更新矩形位置
+
+        # 物理计算：位置更新（使用运动学公式）
+        self.pos += self.vel#每一帧等于1秒,pos+vel 
+
+        # 更新矩形位置???
         self.rect.midbottom = self.pos
 
     def calculate_animation_speed(self):

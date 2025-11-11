@@ -11,18 +11,16 @@ class Level(pg.sprite.Sprite):
         self.set_wall()       # 设置墙壁碰撞体
         self.set_group()      # 组合所有碰撞体组
 
-    def set_group(self):
-        """将地面组合成碰撞检测组"""
-        self.ground_group = pg.sprite.Group(self.ground_collider)
+  
         
     def set_wall(self):
         """设置墙壁碰撞体，定义游戏中的墙壁障碍物，防止玩家跳出世界"""
-        wall_left = Collider(0, 0, 10, HEIGHT,color=WIDTH)  # 左侧墙壁
-        wall_right = Collider(WIDTH-10, 0, 10, HEIGHT,color=WIDTH)  # 右侧墙壁
+        wall_left = Collider(0, 0, 10, HEIGHT,color=BLACK)  # 左侧墙壁
+        wall_right = Collider(MAP_WIDTH-10, 0, 10, HEIGHT,color=BLACK)  # 右侧墙壁
         # 将管道碰撞体添加到组中
         self.wall_group = pg.sprite.Group(wall_left,wall_right)
         if hasattr(self, 'all_group'):
-            self.all_group.add(wall_left, wall_right)
+            self.ground_group.add(wall_left, wall_right)
             '''这段代码的意思是：
 
 检查 self 对象是否有 all_group 这个属性
@@ -50,8 +48,13 @@ class Level(pg.sprite.Sprite):
     def set_ground(self):
         """设置单一连续的地面碰撞体，宽度为窗口的两倍"""
         # 创建单一地面碰撞体，宽度为1600像素（800*2）
-        map_width = WIDTH * 2  # 1600像素
-        self.ground_collider = Collider(0, GROUND_HEIGHT, map_width, 60)
+        ground_width = MAP_WIDTH  # 1600像素
+        ground_height = PLAIN_HEIGHT+40  #水平面为20，地面比水平面高40
+        self.ground_collider = Collider(0, GROUND_HEIGHT, ground_width, ground_height)
+        
+    def set_group(self):
+        """将地面组合成碰撞检测组"""
+        self.ground_group = pg.sprite.Group(self.ground_collider)
 
     def check_collide(self):
         """检测马里奥的碰撞"""
@@ -63,12 +66,11 @@ class Level(pg.sprite.Sprite):
         """水平方向碰撞处理，防止马里奥穿过障碍物"""
         # 墙壁碰撞处理
         if self.wall_collide:
-            # if self.mario.pos.y > self.wall_collide.rect.y + 10:  # 确保是从侧面碰撞，不是从上方
                 if self.mario.vel.x > 0:  # 向右移动时碰撞
                     self.mario.pos.x -= 5  # 向右回退
                     self.mario.vel.x = 0   # 停止水平移动
                 if self.mario.vel.x < 0:   # 向左移动时碰撞
-                    self.mario.pos.x += 5   # 向左回退（这里可能有误，应该是+=5？）
+                    self.mario.pos.x += 5   # 向左回退
                     self.mario.vel.x = 0   # 停止水平移动
 
 
@@ -89,5 +91,5 @@ class Level(pg.sprite.Sprite):
         if self.mario.pos.y > GROUND_HEIGHT + 50:  # 如果掉到地面以下一定距离
             self.mario.dead = True  # 标记为死亡状态
         # 同时检查是否走出地图右边界
-        if self.mario.pos.x > WIDTH * 2:  # 如果走出地图右边界
+        if self.mario.pos.x > MAP_WIDTH + 20:  # 如果走出地图右边界
             self.mario.dead = True  # 也可以标记为完成关卡，这里简单处理为死亡
