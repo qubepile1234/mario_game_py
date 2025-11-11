@@ -1,6 +1,7 @@
 # 导入自定义模块
-from level_plain import *  # 导入简化关卡相关的所有类和函数
+from level3 import *  # 导入简化关卡相关的所有类和函数
 from sprites import *  # 导入精灵相关的所有类和函数
+from Collider import *  # 导入精灵相关的所有类和函数
 
 
 class Game:
@@ -24,7 +25,9 @@ class Game:
         self.level_surface = pg.Surface((WIDTH, HEIGHT)).convert()
         
         # 加载并处理背景图像
-        self.background = load_image('level.png')  # 加载背景图片
+        self.background = load_image('level2.png')  # 加载背景图片
+        self.background = pg.transform.scale(self.background, (MAP_WIDTH, HEIGHT))
+        
         self.back_rect = self.background.get_rect()  # 获取背景图片的矩形区域
         # 缩放背景图片
         self.background = pg.transform.scale(
@@ -35,6 +38,9 @@ class Game:
         
         self.level = Level()  # 创建关卡实例
         self.all_group.add(self.level.mario)  # 将马里奥添加到精灵组
+        # self.all_group.add(self.level.wall_group,self.level.ground_group)
+        self.all_group.add(self.level.all_colliders)
+        
 
     def run(self):
         """游戏主循环"""
@@ -46,33 +52,13 @@ class Game:
         
         # 游戏结束后显示结束画面
         self.show_end_screen()
-#################not use##############################
-    def update_not_use(self):
-        """更新游戏状态"""
-        if not self.game_over:
-            self.all_group.update()  # 更新所有精灵
-            self.level.update()  # 更新关卡
-            
-            # 控制马里奥在屏幕左侧边界的行为
-            if self.level.mario.pos.x < self.viewpoint.x + 15:
-                self.level.mario.pos.x -= self.level.mario.vel.x
-                
-            # 当马里奥向右移动时，滚动视口（摄像机跟随）
-            if self.level.mario.vel.x > 0:
-                if self.level.mario.pos.x > WIDTH * 0.55 + self.viewpoint.x:
-                    self.viewpoint.x += int(self.level.mario.vel.x * 1.3)  # 视口以稍快速度跟随
-            
-            # 检查马里奥是否死亡
-            if self.level.mario.dead:
-                self.game_over = True  # 标记游戏结束
-                self.playing = False   # 停止游戏主循环
-                
-##############################################################               
+              
     def update(self):
         """更新游戏状态 - 支持双向摄像机移动"""
         if not self.game_over:
-            self.all_group.update()  # 更新所有精灵
-            self.level.update()  # 更新关卡
+            self.all_group.update()  # 更新所有精灵:马里奥状态
+            self.level.update()  # 更新关卡状态
+            
             
             # 双向摄像机跟随系统
             self.update_camera()
@@ -89,7 +75,6 @@ class Game:
         if self.level.mario.vel.x > 0:  # 向右移动
             if self.level.mario.pos.x > WIDTH * 0.55 + self.viewpoint.x:
                 self.viewpoint.x += int(self.level.mario.vel.x * 1.5)
-                # self.viewpoint.x = int(self.level.mario.pos.x)  # 固定速度跟随
         
         # 向左移动时的摄像机跟随（新增）
         elif self.level.mario.vel.x < 0:  # 向左移动
@@ -304,8 +289,15 @@ class Game:
         
         self.clear_display()  # 清空显示画面
         
-        self.reinitialize_game()
+        # 重新创建关卡
+        self.level = Level()
         
+        # 重新添加精灵到组
+        self.all_group.add(self.level.mario)
+        self.all_group.add(self.level.all_colliders)
+        
+        # 重新设置摄像机位置
+        self.viewpoint = self.screen.get_rect()        
         # 重新初始化游戏
         # self.new()  # 重新创建关卡
             
@@ -325,7 +317,7 @@ class Game:
         
         # 可选: 显示"重新开始..."提示
         font = pg.font.Font(None, 36)
-        text = font.render("マリオゲーム、再開...", True, (111,111,111))
+        text = font.render("starting...", True, (111,111,111))
         text_rect = text.get_rect(center=(WIDTH//2, HEIGHT//2))
         self.screen.blit(text, text_rect)
         
@@ -335,20 +327,4 @@ class Game:
         # 短暂延迟让玩家看到提示
         pg.time.delay(500)
 
-    def reinitialize_game(self):
-        """重新初始化游戏"""
-        # 重新创建关卡
-        self.level = Level()
-        
-        # 重新添加精灵到组
-        self.all_group.add(self.level.mario)
-        
-        # 重新设置摄像机位置
-        self.viewpoint = self.screen.get_rect()
 
-
-# 游戏启动代码
-game = Game()  # 创建游戏实例
-game.show_start_screen()  # 显示开始屏幕
-game.new()  # 初始化新游戏
-game.run()  # 运行游戏主循环

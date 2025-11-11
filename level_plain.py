@@ -1,5 +1,5 @@
 from sprites import *  # 导入精灵相关的所有类和函数
-
+from Collider import *  # 导入精灵相关的所有类和函数
 
 class Level(pg.sprite.Sprite):
     """简化关卡类，只有平坦地面，+墙壁"""
@@ -9,28 +9,8 @@ class Level(pg.sprite.Sprite):
         self.set_mario()      # 创建马里奥角色
         self.set_ground()     # 设置地面碰撞体
         self.set_wall()       # 设置墙壁碰撞体
+        self.set_pipes()
         self.set_group()      # 组合所有碰撞体组
-
-  
-        
-    def set_wall(self):
-        """设置墙壁碰撞体，定义游戏中的墙壁障碍物，防止玩家跳出世界"""
-        wall_left = Collider(0, 0, 10, HEIGHT,color=BLACK)  # 左侧墙壁
-        wall_right = Collider(MAP_WIDTH-10, 0, 10, HEIGHT,color=BLACK)  # 右侧墙壁
-        # 将管道碰撞体添加到组中
-        self.wall_group = pg.sprite.Group(wall_left,wall_right)
-        if hasattr(self, 'all_group'):
-            self.ground_group.add(wall_left, wall_right)
-            '''这段代码的意思是：
-
-检查 self 对象是否有 all_group 这个属性
-
-如果有，就执行 self.all_group.add(wall_left, wall_right)
-
-如果没有，就跳过（避免报错）
-
-🛡️ 为什么需要 hasattr()
-防止 AttributeError 错误'''
 
         
     def update(self):
@@ -44,40 +24,91 @@ class Level(pg.sprite.Sprite):
         """创建马里奥角色实例"""
         self.mario = Mario()
         
-
+    # def draw_collider(self):
+    #     self.
+    
     def set_ground(self):
         """设置单一连续的地面碰撞体，宽度为窗口的两倍"""
         # 创建单一地面碰撞体，宽度为1600像素（800*2）
         ground_width = MAP_WIDTH  # 1600像素
         ground_height = PLAIN_HEIGHT+40  #水平面为20，地面比水平面高40
-        self.ground_collider = Collider(0, GROUND_HEIGHT, ground_width, ground_height)
+        self.ground_collider = Collider(0, GROUND_HEIGHT, ground_width, ground_height,color=(0,222,0))
+     
+    def set_wall(self):
+        """设置墙壁碰撞体，定义游戏中的墙壁障碍物，防止玩家跳出世界"""
+        self.wall_left = Collider(0, 0, 10, HEIGHT,color=(255,0,0))  # 左侧墙壁
+        self.wall_right = Collider(MAP_WIDTH-10, 0, 10, HEIGHT,color=(0,255,255))  # 右侧墙壁
+
+    def set_pipes(self):
+        """设置管道碰撞体，定义游戏中的管道障碍物"""
+        # 创建六个管道碰撞体，高度不同表示管道露出地面的高度不同
+        self.pipe1 = Collider(40, GROUND_HEIGHT, 83, 80,color=(221,112,112))   # 较短的管道
+        self.pipe2 = Collider(200, GROUND_HEIGHT, 83, 120,color=(22,22,131))  # 中等高度的管道
         
+
+        # 将管道碰撞体添加到组中
+
+
+     
     def set_group(self):
         """将地面组合成碰撞检测组"""
         self.ground_group = pg.sprite.Group(self.ground_collider)
+        # 将管道碰撞体添加到组中
+        self.wall_group = pg.sprite.Group(self.wall_left,self.wall_right)
+        self.pipe_group = pg.sprite.Group(self.pipe1, self.pipe2)
+        if hasattr(self, 'all_group'):
+            self.ground_group.add(self.wall_left, self.wall_right)
+            '''这段代码的意思是：
+
+检查 self 对象是否有 all_group 这个属性
+
+如果有，就执行 self.all_group.add(wall_left, wall_right)
+
+如果没有，就跳过（避免报错）
+
+🛡️ 为什么需要 hasattr()
+防止 AttributeError 错误'''
+#---------------------------------------
+        # 创建一个包含所有碰撞体的组，用于绘制
+        self.all_colliders = pg.sprite.Group(
+        self.ground_collider, self.wall_left, self.wall_right,self.pipe1,self.pipe2
+    )
+#---------------------------------------
+
 
     def check_collide(self):
         """检测马里奥的碰撞"""
         # self.ground_collide = pg.sprite.spritecollideany(self.mario, self.ground_group)  # 多地面碰撞
-        self.wall_collide = pg.sprite.spritecollideany(self.mario, self.wall_group)      # wall碰撞
-        self.ground_collide = pg.sprite.collide_rect(self.mario, self.ground_collider)#单一对象碰撞
+        # self.wall_collide = pg.sprite.spritecollideany(self.mario, self.wall_group)      # wall碰撞
+        # self.ground_collide = pg.sprite.collide_rect(self.mario, self.ground_collider)#单一对象碰撞
+        # self.y_group=self.pipe_group+self.ground_group
+        # self.x_group=self.pipe_group+self.wall_group
+        
+        self.y_group = self.pipe_group.copy()
+        self.y_group.add(self.ground_group)
+    
+        self.x_group = self.pipe_group.copy()
+        self.x_group.add(self.wall_group)
+        self.y_collide = pg.sprite.spritecollideany(self.mario, self.y_group)
+        self.x_collide = pg.sprite.spritecollideany(self.mario, self.x_group)
+        
 
     def adjust_x(self):
         """水平方向碰撞处理，防止马里奥穿过障碍物"""
         # 墙壁碰撞处理
-        if self.wall_collide:
+        if self.x_collide:##############
                 if self.mario.vel.x > 0:  # 向右移动时碰撞
-                    self.mario.pos.x -= 5  # 向右回退
+                    self.mario.pos.x -= 1  # 向右回退
                     self.mario.vel.x = 0   # 停止水平移动
                 if self.mario.vel.x < 0:   # 向左移动时碰撞
-                    self.mario.pos.x += 5   # 向左回退
+                    self.mario.pos.x += 1   # 向左回退
                     self.mario.vel.x = 0   # 停止水平移动
 
 
     def adjust_y(self):
         """垂直方向碰撞处理，处理跳跃和下落"""
         # 地面碰撞处理
-        if self.ground_collide:
+        if self.y_collide:
             if self.ground_collider.rect.top < self.mario.pos.y:  # 从上方落到地面
                 self.mario.acc.y = 0        # 重置垂直加速度
                 self.mario.vel.y = 0        # 重置垂直速度

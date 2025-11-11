@@ -1,4 +1,5 @@
 from sprites import *  # 导入精灵相关的所有类和函数
+from Collider import *  # 导入精灵相关的所有类和函数
 
 
 class Level(pg.sprite.Sprite):

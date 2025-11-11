@@ -31,40 +31,53 @@ class Mario(pg.sprite.Sprite):
         # 向右移动处理
         if keys[pg.K_RIGHT]:
             # self.walk('right')  # 按右键播放向右行走动画
-            if self.vel.x > 0:  # 如果已经在向右移动
+            if self.vel.x >= 0:  # 如果已经在向右移动
                 self.acc.x = ACC  # 使用转向加速度
-            if self.vel.x <= 0:  # 如果静止或向左移动
+            # if self.vel.x < 0:  # 如果静止或向左移动
+            else:
                 self.acc.x = TURNAROUND  # 使用正常加速度
         
         # 向左移动处理
         elif keys[pg.K_LEFT]:
             # self.walk('left')  # 是按左键播放向左行走动画
-            if self.vel.x < 0:  # 如果已经在向左移动
+            if self.vel.x <= 0:  # 如果已经在向左移动
                 self.acc.x = -ACC  # 使用正常加速度
-            if self.vel.x >= 0:  # 如果静止或向右移动
+            # if self.vel.x >= 0:  # 如果静止或向右移动
+            else:
                 self.acc.x = -TURNAROUND  # 使用转向加速度
-        speedx=self.vel.x
-        ax=self.acc.x
-        if int(speedx + ax) > 0:  # 如果已经在向右移动
-                ax -= FRICTION  # 速度大于0减速
-                if int(speedx + ax) > 0:  # 减速后如果速度小于0
-                    speedx = 0  # 直接设为0，防止反向移动
-        elif int(speedx + ax) < 0:  # 如果向左移动
-                ax += FRICTION  # 速度小于0减速
-                if int(speedx + ax) > 0:  # 减速后如果速度大于0
-                    speedx = 0  # 直接设为0，防止反向移动
-        
-        # 限制最大速度
-        if abs(self.vel.x+self.acc.x) < MAX_SPEED:
-            self.vel.x += self.acc.x  # 在限速内增加速度
-        elif keys[pg.K_LEFT]:
-            self.vel.x = -MAX_SPEED  # 达到向左最大速度
-        elif keys[pg.K_RIGHT]:
-            self.vel.x = MAX_SPEED  # 达到向右最大速度
-        
-        if speedx==0:
-            self.vel.x = speedx  # 直接设为0，防止反向移动
-        
+                
+        # speedx=self.vel.x
+        # ax=self.acc.x
+        # if int(speedx + ax) > 0:  # 如果已经在向右移动
+        #         ax -= FRICTION  # 速度大于0减速
+        #         if int(speedx + ax) < 0:  # 减速后如果速度小于0
+        #             speedx = 0  # 直接设为0，防止反向移动
+        # elif int(speedx + ax) < 0:  # 如果向左移动
+        #         ax += FRICTION  # 速度小于0减速
+        #         if int(speedx + ax) > 0:  # 减速后如果速度大于0
+        #             speedx = 0  # 直接设为0，防止反向移动
+                    
+        # if speedx==0:
+        #     self.vel.x = speedx  # 直接设为0，防止反向移动
+        ###################################
+        else:
+            # 没有按键时应用摩擦力
+            if abs(self.vel.x) > 0:
+                # 摩擦力方向与速度方向相反
+                friction_direction = -1 if self.vel.x > 0 else 1
+                self.acc.x = friction_direction * FRICTION
+                
+                # 如果摩擦力会使速度反向，则直接停止
+                if abs(self.vel.x) <= FRICTION:
+                    self.vel.x = 0
+                    self.acc.x = 0
+        # 应用加速度到速度
+        self.vel.x += self.acc.x
+        ####################################
+        # 限制最大水平速度
+        if abs(self.vel.x) > MAX_SPEED:
+            self.vel.x = MAX_SPEED if self.vel.x > 0 else -MAX_SPEED
+        # 更新动画状态
         if self.vel.x > 0:  # 如果已经在向右移动
             self.walk('right') 
         elif self.vel.x < 0:  # 如果向左移动
@@ -75,7 +88,7 @@ class Mario(pg.sprite.Sprite):
         # 跳跃处理
         if keys[pg.K_SPACE]:
             if self.landing:  # 只有在地面上才能跳跃
-                self.vel.y = -JUMP  # 设置跳跃速度
+                self.vel.y = -JUMP  # 设置跳跃速度=跳跃力量
                 #获得向上的加速度,质量为1,故加速度=速度
         
         # 空中状态处理
@@ -85,11 +98,9 @@ class Mario(pg.sprite.Sprite):
         self.image = self.frames[self.image_index]  # 更新当前显示图像
         
         self.vel.y += GRAVITY
-        if self.pos.y > 0:
-            self.vel.y += GRAVITY  # 模拟下落速度
-        else:
-            self.vel.y = -1 * int(self.vel.y)  # 着陆时垂直速度归零
-
+        # 限制最大下落速度（防止速度无限增大）
+        if self.vel.y > TERMINAL_VELOCITY:  # 需要定义 TERMINAL_VELOCITY
+            self.vel.y = TERMINAL_VELOCITY
 
         # 物理计算：位置更新（使用运动学公式）
         self.pos += self.vel#每一帧等于1秒,pos+vel 
@@ -183,16 +194,3 @@ class Mario(pg.sprite.Sprite):
         return image
 
 
-class Collider(pg.sprite.Sprite):
-    """碰撞体类，用于检测碰撞的不可见区域"""
-    
-    def __init__(self, x, y, width, height,color=None):
-        pg.sprite.Sprite.__init__(self)  # 调用父类构造函数
-        self.image = pg.Surface((width, height)).convert()  # 创建碰撞区域表面
-        if color:
-            self.image.fill(color)  # 有颜色就填充
-        else:
-            self.image.set_alpha(0)  # 否则透明（保持原有行为）
-        self.rect = self.image.get_rect()  # 获取矩形区域
-        self.rect.x = x  # 设置x坐标
-        self.rect.y = y  # 设置y坐标
