@@ -1,5 +1,5 @@
 # 导入自定义模块
-from level3 import *  # 导入简化关卡相关的所有类和函数
+from level5 import *  # 导入简化关卡相关的所有类和函数
 from sprites import *  # 导入精灵相关的所有类和函数
 from Collider import *  # 导入精灵相关的所有类和函数
 
