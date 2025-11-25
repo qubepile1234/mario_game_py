@@ -1,4 +1,4 @@
-from main import Game
+from main1 import Game
 # 游戏启动代码
 game = Game()  # 创建游戏实例
 game.show_start_screen()  # 显示开始屏幕

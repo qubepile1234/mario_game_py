@@ -16,7 +16,8 @@ class Mario(pg.sprite.Sprite):
         self.image_index = 4  # 当前显示的动画帧索引
         self.image = self.frames[0]  # 当前显示的图像
         self.rect = self.image.get_rect()  # 获取图像矩形区域
-        self.pos = vec(WIDTH * 0.5, GROUND_HEIGHT - 70)  # 初始位置（屏幕中央偏上）
+        # self.pos = vec(WIDTH * 0.5, GROUND_HEIGHT - 70)  # 初始位置（屏幕中央偏上）
+        # self.pos = vec(900, GROUND_HEIGHT - 70)  # 初始位置（屏幕中央偏上）
         self.vel = vec(0, 0)  # 速度向量
         self.acc = vec(0, 0)  # 加速度向量
         self.landing = False  # 是否着陆标志

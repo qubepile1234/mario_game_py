@@ -7,6 +7,7 @@ class Level(pg.sprite.Sprite):
     def __init__(self):
         """初始化关卡，设置所有游戏元素"""
         self.set_mario()      # 创建马里奥角色
+        self.mario.pos = vec(WIDTH * 0.5, GROUND_HEIGHT - 70)  # 初始位置（屏幕中央偏上）
         self.set_line_colliders()  # 设置线段碰撞体
         self.set_group()      # 组合所有碰撞体组
 
@@ -58,9 +59,9 @@ class Level(pg.sprite.Sprite):
         self.vertical_lines = pg.sprite.Group()    # 垂直线组
         
         # 地面 - 使用水平线
-        ground_y = GROUND_HEIGHT
-        ground_length = MAP_WIDTH
-        ground_line = LineCollider(0, ground_y, ground_length, 'horizontal', color=(0,222,0))
+        # ground_y = GROUND_HEIGHT
+        # ground_length = MAP_WIDTH
+        ground_line = LineCollider(0, GROUND_HEIGHT, MAP_WIDTH, 'horizontal', color=(0,222,0))
         self.horizontal_lines.add(ground_line)
         
         # 左侧墙壁 - 使用垂直线
@@ -68,6 +69,7 @@ class Level(pg.sprite.Sprite):
         self.vertical_lines.add(wall_left)
         
         # 右侧墙壁 - 使用垂直线
+        # wall_right = LineCollider(700, 0, HEIGHT, 'vertical', color=(0,255,255))
         wall_right = LineCollider(MAP_WIDTH-1, 0, HEIGHT, 'vertical', color=(0,255,255))
         self.vertical_lines.add(wall_right)
         

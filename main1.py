@@ -103,12 +103,13 @@ class Game:
         
         # 限制摄像机位置
         map_width = self.background.get_width()
-        target_x = max(0, min(target_x, MAP_WIDTH))
+        target_x = max(0, min(target_x, MAP_WIDTH-WIDTH))
         # target_x = max(0, min(target_x, map_width - WIDTH)+500)
         
         # 平滑移动到目标位置
-        self.viewpoint.x += (target_x - self.viewpoint.x) * 0.1
-        # self.viewpoint.x = target_x
+        # self.viewpoint.x += (target_x - self.viewpoint.x)
+        # * 0.1
+        self.viewpoint.x = target_x
         # self.viewpoint.x += 1
 
 
@@ -215,10 +216,6 @@ class Game:
         # 应用平滑移动
         self.viewpoint.x += (final_target - self.viewpoint.x) * dynamic_smooth
 
-    def update_camera_(self):
-        return 
-        
-
 
     def update_camera_not_use(self):
         """更新摄像机位置 - 改进的摄像机跟随系统"""
@@ -248,16 +245,16 @@ class Game:
         # 限制摄像机位置，确保不会超出地图边界
         self.clamp_camera_position1()
 
-    def clamp_camera_position1(self):
+    def clamp_camera_position(self):
         """限制摄像机位置，确保不会超出地图边界"""
         # 获取背景图像的实际宽度
-        map_width = self.background.get_width()
+        # map_width = self.background.get_width()
         
         # 摄像机左边界（不能小于0）
         min_camera_x = 0
         
         # 摄像机右边界（不能超过地图宽度减去屏幕宽度）
-        max_camera_x = max(0, map_width - WIDTH)
+        max_camera_x = max(0, MAP_WIDTH - WIDTH)
         
         # 应用边界限制
         if self.viewpoint.x < min_camera_x:
@@ -266,11 +263,7 @@ class Game:
             self.viewpoint.x = max_camera_x
 
 
-
-
-
-
-    def clamp_camera_position(self):
+    def clamp_camera_position2(self):
         """限制摄像机位置，确保不会超出地图边界+-20"""
         # 摄像机左边界（不能小于0）
         min_camera_x = 0 - 20#相机能看到地图边界-20
@@ -279,8 +272,8 @@ class Game:
 
         # 摄像机右边界（不能超过地图宽度减去屏幕宽度）
         map_width = self.background.get_width()  # 背景图片宽度就是地图宽度
-        # max_camera_x = map_width - WIDTH
-        max_camera_x = map_width + 20 #相机能看到地图边界+20
+        max_camera_x = map_width - WIDTH
+        # max_camera_x = map_width + 20 #相机能看到地图边界+20
         if self.viewpoint.x > max_camera_x:
             self.viewpoint.x = max_camera_x
 ##############################################################
@@ -290,7 +283,7 @@ class Game:
             if event.type == pg.QUIT:  # 如果点击关闭窗口
                 self.playing = False  # 结束游戏
             
-    def draw(self):
+    def draw_not_use(self):
         """绘制游戏画面 - 优化版本"""
         if not self.game_over:
             self.screen.fill(WHITE)
@@ -301,6 +294,47 @@ class Game:
             # 在屏幕上绘制所有精灵
             pg.display.flip()
             #刷新
+            
+    def world_to_screen(self, world_x, world_y):
+        """世界坐标转屏幕坐标"""
+        return (world_x - self.viewpoint.x, world_y - self.viewpoint.y)
+     
+            
+            
+    def draw(self):
+        """绘制游戏画面 - 修复版"""
+        if not self.game_over:
+            self.screen.fill(WHITE)
+            
+            # 1. 绘制背景（使用视口截取）
+            self.screen.blit(self.background, (0, 0), self.viewpoint)
+            
+            # 2. 手动绘制所有精灵，应用摄像机偏移
+            for sprite in self.all_group:
+                # 计算屏幕坐标：世界坐标 - 摄像机位置
+                # screen_x = sprite.rect.x - self.viewpoint.x
+                # screen_y = sprite.rect.y - self.viewpoint.y
+                
+                screen_x,screen_y = self.world_to_screen(sprite.rect.x,sprite.rect.y)
+                
+                
+                # 优化：只绘制在屏幕范围内的精灵
+                if self.is_sprite_visible(screen_x, screen_y, sprite.rect.width, sprite.rect.height):
+                    self.screen.blit(sprite.image, (screen_x, screen_y))
+            
+            pg.display.flip()
+
+
+    
+    def is_sprite_visible(self, x, y, width, height):
+        """检查精灵是否在屏幕可见范围内"""
+        return (x + width >= 0 and x <= WIDTH and 
+                y + height >= 0 and y <= HEIGHT)
+                
+                
+                
+                
+                
             
             
 
