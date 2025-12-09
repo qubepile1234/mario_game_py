@@ -10,7 +10,7 @@ class Mario(pg.sprite.Sprite):
     
     def __init__(self):
         pg.sprite.Sprite.__init__(self)  # 调用父类构造函数
-        self.sheet = load_image('mario.png')  # 加载精灵图
+        self.sheet = load_image('mario2.png')  # 加载精灵图
         self.load_from_sheet()  # 从精灵图中提取动画帧
         self.walking_timer = pg.time.get_ticks()  # 行走动画计时器
         self.image_index = 4  # 当前显示的动画帧索引
@@ -33,10 +33,11 @@ class Mario(pg.sprite.Sprite):
         if keys[pg.K_RIGHT]:
             # self.walk('right')  # 按右键播放向右行走动画
             if self.vel.x >= 0:  # 如果已经在向右移动
-                self.acc.x = ACC  # 使用转向加速度
+                self.acc.x = ACC  # 使用正常加速度
             # if self.vel.x < 0:  # 如果静止或向左移动
             else:
-                self.acc.x = TURNAROUND  # 使用正常加速度
+                self.acc.x = TURNAROUND  # 使用转向加速度
+                
         
         # 向左移动处理
         elif keys[pg.K_LEFT]:
@@ -187,11 +188,11 @@ class Mario(pg.sprite.Sprite):
         rect = image.get_rect()
         # 从精灵表中截取指定区域
         image.blit(self.sheet, (0, 0), (x, y, width, height))
-        image.set_colorkey(BLACK)  # 设置黑色为透明色
+        # image.set_colorkey(BLACK)  # 设置白色为透明色
+        image.set_colorkey(WHITE)  # 设置白色为透明色
         # 缩放图像到合适大小
         image = pg.transform.scale(image,
                                    (int(rect.width * MARIO_SIZE),
                                     int(rect.height * MARIO_SIZE)))
         return image
-
 

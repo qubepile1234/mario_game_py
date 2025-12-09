@@ -1,7 +1,7 @@
 # 导入自定义模块
-from level5 import *  # 导入简化关卡相关的所有类和函数
-from sprites import *  # 导入精灵相关的所有类和函数
-from Collider import *  # 导入精灵相关的所有类和函数
+from level7 import *  # 导入简化关卡相关的所有类和函数
+from mario import *  # 导入精灵相关的所有类和函数
+from Collider import *  # 导入精update灵相关的所有类和函数
 
 
 class Game:
@@ -25,26 +25,33 @@ class Game:
         self.level_surface = pg.Surface((WIDTH, HEIGHT)).convert()
         
         
-        self.viewpoint.x += 1100
-        
-        
-        
         # 加载并处理背景图像
         self.background = load_image('level3.png')  # 加载背景图片
         self.background = pg.transform.scale(self.background, (MAP_WIDTH, HEIGHT))
         
         self.back_rect = self.background.get_rect()  # 获取背景图片的矩形区域
-        # 缩放背景图片
-        # self.background = pg.transform.scale(
-        #     self.background,
-        #     (int(self.back_rect.width * BACKGROUND_SIZE),  # 计算缩放后的宽度
-        #      int(self.back_rect.height * BACKGROUND_SIZE))  # 计算缩放后的高度
-        # ).convert()
         
         self.level = Level()  # 创建关卡实例
+        # 清空并重新填充 all_group
+        self.all_group.empty()  # 清空所有精灵
+        
+        
         self.all_group.add(self.level.mario)  # 将马里奥添加到精灵组
-        # self.all_group.add(self.level.wall_group,self.level.ground_group)
-        self.all_group.add(self.level.all_colliders)
+
+        mario_count = sum(1 for sprite in self.all_group.sprites() if isinstance(sprite, Mario))
+            
+      
+        
+    # 添加所有敌人到精灵组
+        if hasattr(self.level, 'enemies') and self.level.enemies:
+            #如果 self.level 有 enemies 属性，并且 enemies 属性不为空（有内容），则执行后面的代码"
+            for enemy in self.level.enemies:
+                self.all_group.add(enemy)
+        enemy_count = sum(1 for sprite in self.all_group.sprites() if isinstance(sprite, (Enemy1, Enemy2)))
+        
+        # 添加所有碰撞体到精灵组
+        if hasattr(self.level, 'all_colliders'):
+            self.all_group.add(*self.level.all_colliders)
         
 
     def run(self):
@@ -54,14 +61,11 @@ class Game:
             self.events()  # 处理事件
             self.update()  # 更新游戏状态
             self.draw()  # 绘制游戏画面
-            # self.update()  # 更新游戏状态
-            # self.update_camera()
-            # self.update_camera()
         
         # 游戏结束后显示结束画面
         self.show_end_screen()
               
-    def update(self):
+    def update1(self):
         """更新游戏状态 - 支持双向摄像机移动"""
         
             # 双向摄像机跟随系统
@@ -78,6 +82,162 @@ class Game:
             if self.level.mario.dead:
                 self.game_over = True  # 标记游戏结束
                 self.playing = False   # 停止游戏主循环
+
+
+    def update2(self):
+        """更新游戏状态 - 支持双向摄像机移动"""
+        # 双向摄像机跟随系统
+        self.update_camera()
+        
+        if not self.game_over:
+            # 更新所有精灵
+            for sprite in self.all_group:
+                # 根据精灵类型调用不同的update方法
+                if isinstance(sprite, (Enemy1, Enemy2)):  # 如果是敌人
+                    sprite.update(self.level.horizontal_lines, self.level.vertical_lines)
+                elif isinstance(sprite, Mario):  # 如果是马里奥
+                    sprite.update()
+                # 其他精灵（如碰撞体）可能不需要update
+                # elif hasattr(sprite, 'update'):
+                    # sprite.update()
+            
+            # 更新关卡状态
+            self.level.update()
+            
+            # 检查马里奥是否死亡
+            if self.level.mario.dead:
+                self.game_over = True  # 标记游戏结束
+                self.playing = False   # 停止游戏主循环
+
+
+    def update(self):
+        """更新游戏状态"""
+        self.update_camera()
+        
+        if not self.game_over:
+            # 使用安全的更新方法
+            # self.level.mario.update()
+            
+            self.safe_update_sprites()
+            
+            # 更新关卡状态
+            self.level.update()
+            
+            # 检查马里奥是否死亡
+            if self.level.mario.dead:
+                self.game_over = True
+                self.playing = False
+
+
+    def update3333(self):
+        """更新游戏状态"""
+        # 更新摄像机
+        self.update_camera()
+        
+        if not self.game_over:
+            # 手动更新每个精灵（根据类型调用不同的update方法）
+            sprites_to_update = list(self.all_group.sprites())
+            for sprite in sprites_to_update:
+                if isinstance(sprite, (Enemy1, Enemy2)):  # 如果是敌人
+                    if not sprite.dead:  # 只有未死亡的敌人才更新
+                        sprite.update(self.level.horizontal_lines, self.level.vertical_lines)
+                elif isinstance(sprite, Mario):  # 如果是马里奥
+                    sprite.update()
+                # 碰撞体不需要update
+            
+            # 更新关卡状态（包括碰撞检测）
+            self.level.update()
+            
+            # 移除已死亡的敌人
+            dead_enemies = []
+            for sprite in sprites_to_update:
+                if isinstance(sprite, (Enemy1, Enemy2)):
+                    if sprite.dead:
+                        dead_enemies.append(sprite)
+            
+            for enemy in dead_enemies:
+                enemy.kill()  # 从所有组中移除
+                self.all_group.remove(enemy)
+                if enemy in self.level.enemies:
+                    self.level.enemies.remove(enemy)
+            
+            # 检查马里奥是否死亡
+            if self.level.mario.dead:
+                self.game_over = True  # 标记游戏结束
+                self.playing = False   # 停止游戏主循环
+
+    def draw(self):
+        """绘制游戏画面 - 修复版"""
+        if not self.game_over:
+            self.screen.fill(WHITE)
+            
+            # 1. 绘制背景（使用视口截取）
+            self.screen.blit(self.background, (0, 0), self.viewpoint)
+            
+            # 2. 手动绘制所有精灵，应用摄像机偏移
+            sprites_to_draw = list(self.all_group.sprites())
+            
+            for sprite in sprites_to_draw:
+                # 计算屏幕坐标
+                screen_x = sprite.rect.x - self.viewpoint.x
+                screen_y = sprite.rect.y - self.viewpoint.y
+                
+                # 检查精灵是否在屏幕内
+                if self.is_sprite_visible(screen_x, screen_y, sprite.rect.width, sprite.rect.height):
+                    try:
+                        self.screen.blit(sprite.image, (screen_x, screen_y))
+                    except Exception as e:
+                        print(f"绘制精灵失败: {e}, 精灵类型: {type(sprite)}")
+            
+            # 3. 显示调试信息
+            font = pg.font.Font(None, 24)
+            
+            # 计算各种精灵数量
+            enemy_count = sum(1 for sprite in self.all_group.sprites() if isinstance(sprite, (Enemy1, Enemy2)))
+            mario_count = sum(1 for sprite in self.all_group.sprites() if isinstance(sprite, Mario))
+            collider_count = len(self.all_group.sprites()) - enemy_count - mario_count
+            
+            debug_text = [
+                f"num_of_sprites: {len(self.all_group.sprites())}",
+                f"mario: {mario_count}",
+                f"enemy: {enemy_count}",
+                f"collider_count: {collider_count}",
+                f"viewpoint: ({self.viewpoint.x}, {self.viewpoint.y})",
+                f"mario_pos: ({int(self.level.mario.pos.x)}, {int(self.level.mario.pos.y)})"
+            ]
+            
+            for i, text in enumerate(debug_text):
+                text_surface = font.render(text, True, (255, 0, 0))
+                self.screen.blit(text_surface, (10, 10 + i * 25))
+            
+            pg.display.flip()
+            
+            
+    def draw33(self):
+        """绘制游戏画面 - 修复版"""
+        if not self.game_over:
+            self.screen.fill(WHITE)
+            
+            # 1. 绘制背景（使用视口截取）
+            self.screen.blit(self.background, (0, 0), self.viewpoint)
+            
+            # 2. 手动绘制所有精灵，应用摄像机偏移
+            for sprite in self.all_group:
+                # 计算屏幕坐标：世界坐标 - 摄像机位置
+                screen_x = sprite.rect.x - self.viewpoint.x
+                screen_y = sprite.rect.y - self.viewpoint.y
+                
+                # 优化：只绘制在屏幕范围内的精灵
+                if self.is_sprite_visible(screen_x, screen_y, sprite.rect.width, sprite.rect.height):
+                    self.screen.blit(sprite.image, (screen_x, screen_y))
+            
+            # 3. 显示敌人数量（调试用）
+            font = pg.font.Font(None, 24)
+            enemy_count = sum(1 for sprite in self.all_group if isinstance(sprite, (Enemy1, Enemy2)))
+            enemy_text = font.render(f"Enemies: {enemy_count}", True, (255, 0, 0))
+            self.screen.blit(enemy_text, (10, 10))
+            
+            pg.display.flip()
 
     def update_camera_not_use(self):
         """更新摄像机位置 - 支持左右双向移动"""
@@ -301,7 +461,7 @@ class Game:
      
             
             
-    def draw(self):
+    def draw1(self):
         """绘制游戏画面 - 修复版"""
         if not self.game_over:
             self.screen.fill(WHITE)
@@ -496,9 +656,70 @@ class Game:
         )
         self.screen.blit(hover_img, hover_pos)        
         
-
-
+            
     def restart_game(self):
+        """重新开始游戏"""
+        # 重置游戏状态
+        self.cleanup_before_restart()
+        
+        self.playing = True
+        self.game_over = False
+        self.viewpoint = self.rect.copy()  # 使用copy()避免引用问题
+        
+        self.clear_display()  # 清空显示画面
+        
+        # 重新创建关卡
+        self.level = Level()
+        
+        # 重新初始化 all_group
+        self.all_group.empty()
+        
+        # 重新添加所有精灵到组
+        self.all_group.add(self.level.mario)
+        
+        # 添加所有敌人
+        for enemy in self.level.enemies:
+            self.all_group.add(enemy)
+        
+        # 添加所有碰撞体
+        if hasattr(self.level, 'all_colliders'):
+            self.all_group.add(*self.level.all_colliders)
+        
+        # 重新开始游戏循环
+        self.run()
+
+
+    def safe_update_sprites(self):
+        """安全的精灵更新方法，避免索引越界"""
+        try:
+            # 创建精灵副本以避免在遍历时修改
+            sprites_list = list(self.all_group.sprites())
+            
+            for sprite in sprites_list:
+                try:
+                    if isinstance(sprite, (Enemy1, Enemy2)):
+                        if not sprite.dead:
+                            sprite.update(self.level.horizontal_lines, self.level.vertical_lines)
+                    elif isinstance(sprite, Mario):
+                        sprite.update()
+                except Exception as e:
+                    print(f"更新精灵 {type(sprite)} 时出错: {e}")
+                    # 从组中移除有问题的精灵
+                    self.all_group.remove(sprite)
+    
+        except Exception as e:
+            print(f"更新精灵组时出错: {e}")
+            # 如果出错，重置all_group
+            self.all_group.empty()
+            self.all_group.add(self.level.mario)
+            for enemy in self.level.enemies:
+                self.all_group.add(enemy)
+            if hasattr(self.level, 'all_colliders'):
+                self.all_group.add(*self.level.all_colliders)
+
+
+
+    def restart_game1(self):
         """重新开始游戏"""
         # 重置  游戏状态
         self.cleanup_before_restart()

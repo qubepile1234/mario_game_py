@@ -37,7 +37,7 @@ class LineCollider(pg.sprite.Sprite):
         self.rect.y = y  # 设置y坐标
 
 
-from sprites import *  # 导入精灵相关的所有类和函数
+from Mario import *  # 导入精灵相关的所有类和函数
 from Collider import *  # 导入精灵相关的所有类和函数
 
 class Level(pg.sprite.Sprite):
