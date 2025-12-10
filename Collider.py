@@ -42,9 +42,9 @@ class LineCollider(pg.sprite.Sprite):
         
         # 根据方向设置碰撞体尺寸
         if orientation == 'horizontal':
-            width, height = length, 3  # 水平线：长度=width，高度=1像素
+            width, height = length, 1  # 水平线：长度=width，高度=1像素
         else:  # vertical
-            width, height = 3, length  # 垂直线：宽度=1像素，长度=height
+            width, height = 1, length  # 垂直线：宽度=1像素，长度=height
             
         self.image = pg.Surface((width, height)).convert()  # 创建碰撞区域表面
         if color:
@@ -55,3 +55,33 @@ class LineCollider(pg.sprite.Sprite):
         self.rect = self.image.get_rect()  # 获取矩形区域
         self.rect.x = x  # 设置x坐标
         self.rect.y = y  # 设置y坐标
+
+class PipeInnerCollider(Collider):
+    """水管内部碰撞体类，用于防止马里奥进入水管内部"""
+    
+    def __init__(self, x, y, width, height, color=None):
+        """
+        初始化水管内部碰撞体
+        
+        参数:
+            x, y (int): 水管内部左上角坐标
+            width (int): 水管内部宽度
+            height (int): 水管内部高度
+            color: 填充颜色，默认为黑色
+        """
+        pg.sprite.Sprite.__init__(self)  # 调用父类构造函数
+        
+        # 设置黑色填充（如果没有提供颜色）
+        if color is None:
+            color = (0, 0, 0)  # 黑色
+        
+        self.image = pg.Surface((width, height)).convert()  # 创建碰撞区域表面
+        self.image.fill(color)  # 填充颜色
+        
+        self.rect = self.image.get_rect()  # 获取矩形区域
+        self.rect.x = x  # 设置x坐标
+        self.rect.y = y  # 设置y坐标
+        
+        # 标记为水管内部碰撞体
+        self.is_pipe_inner = True
+        self.only_horizontal = True  # 只处理水平碰撞

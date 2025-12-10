@@ -8,8 +8,11 @@ vec = pg.math.Vector2  # 创建二维向量别名
 
 class EnemyBase(pg.sprite.Sprite):
     """敌人基类，处理敌人的共同属性和方法"""
-    def __init__(self, sprite_sheet_path, initial_pos=None):
+    def __init__(self, sprite_sheet_path, initial_pos=None,scaled_w=100,scaled_h=100):
         pg.sprite.Sprite.__init__(self)
+        self.set_scale(scaled_w,scaled_h)
+        # self.scaled_w=scaled_w
+        # self.scaled_h=scaled_h
         self.sheet = load_image(sprite_sheet_path)
         self.load_from_sheet()
         self.walking_timer = pg.time.get_ticks()
@@ -36,6 +39,9 @@ class EnemyBase(pg.sprite.Sprite):
         # 设置初始位置（添加这行）
         self.rect.midbottom = self.pos
             
+    def set_scale(self,scaled_w,scaled_h):
+        self.scaled_w=scaled_w
+        self.scaled_h=scaled_h
             
     def update(self, horizontal_lines, vertical_lines):
         """更新敌人状态，需要传入碰撞体组进行碰撞检测"""
@@ -186,10 +192,10 @@ class EnemyBase(pg.sprite.Sprite):
 
 class Enemy1(EnemyBase):
     """敌人类型1"""
-    def __init__(self, initial_pos=None):
+    def __init__(self, initial_pos=None, scaled_w=100,scaled_h=100):
         # original_image = pg.image.load('enemy.png').convert_alpha()
         # self.pic= pg.transform.scale(original_image, (20, 20))
-        super().__init__('enemy.png', initial_pos)
+        super().__init__('enemy.png', initial_pos, scaled_w, scaled_h)
         # 可以覆盖基类的默认属性
         self.move_speed = 1.5
         self.direction_change_interval = 1500
@@ -199,8 +205,8 @@ class Enemy1(EnemyBase):
         self.right_frames = []
         self.left_frames = []
         
-        scaled_h=200
-        scaled_w=200
+        scaled_h=self.scaled_h
+        scaled_w=self.scaled_w
         
         self.walk_frame_count=2
         
@@ -223,33 +229,36 @@ class Enemy1(EnemyBase):
 
 class Enemy2(EnemyBase):
     """敌人类型2（原enemy2类）"""
-    def __init__(self, initial_pos=None):
-        super().__init__('mario.png', initial_pos)
+    def __init__(self, initial_pos=None, scaled_w=100,scaled_h=100):
+        super().__init__('mario21.png', initial_pos, scaled_w,scaled_h)
         # 敌人2的特有属性
         self.move_speed = 2
         self.direction_change_interval = 2500
+    
+    
     
     def load_from_sheet(self):
         """从精灵表中加载动画帧"""
         self.right_frames = []
         self.left_frames = []
 
-        scaled_w=200
-        scaled_h=200
+        scaled_w=self.scaled_w
+        scaled_h=self.scaled_h
+        
         
         self.walk_frame_count=3
 
         # 加载向右动画帧（从精灵图中截取特定区域）
         self.right_frames.append(
-            self.get_image(178, 96, 12, 16,scaled_w,scaled_h))  # 站立帧
+            self.get_image(178, 96*0, 16, 16*2,scaled_w,scaled_h))  # 站立帧
         self.right_frames.append(
-            self.get_image(80, 96, 15, 16,scaled_w,scaled_h))   # 行走帧1
+            self.get_image(80, 96*4, 16, 16*2,scaled_w,scaled_h))   # 行走帧1
         self.right_frames.append(
-            self.get_image(96, 96, 16, 16,scaled_w,scaled_h))   # 行走帧2
+            self.get_image(96, 96*0, 16, 16*2,scaled_w,scaled_h))   # 行走帧2
         self.right_frames.append(
-            self.get_image(112, 96, 16, 16,scaled_w,scaled_h))  # 行走帧3（修正了y坐标）
+            self.get_image(112, 96*3, 16, 16*2,scaled_w,scaled_h))  # 行走帧3（修正了y坐标）
         self.right_frames.append(
-            self.get_image(144, 96, 16, 16,scaled_w,scaled_h))  # 跳跃帧（修正了y坐标）
+            self.get_image(144, 96*3, 16, 16*2,scaled_w,scaled_h))  # 跳跃帧（修正了y坐标）
 
         # 通过翻转创建向左动画帧
         for frame in self.right_frames:

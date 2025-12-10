@@ -10,7 +10,7 @@ class Mario(pg.sprite.Sprite):
     
     def __init__(self):
         pg.sprite.Sprite.__init__(self)  # 调用父类构造函数
-        self.sheet = load_image('mario2.png')  # 加载精灵图
+        self.sheet = load_image('mario21.png')  # 加载精灵图
         self.load_from_sheet()  # 从精灵图中提取动画帧
         self.walking_timer = pg.time.get_ticks()  # 行走动画计时器
         self.image_index = 4  # 当前显示的动画帧索引

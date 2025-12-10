@@ -13,8 +13,13 @@ class Level(pg.sprite.Sprite):
             level_data: 关卡数据字典，如果为None则使用默认关卡1
         """
         # 初始化碰撞体组
+        self.collision_distance=2
+                            # 当马里奥距离水管边缘x像素时就触发碰撞
+        self.inner_margin=(1,6)
+                # 创建水管内部矩形碰撞体（比水管实际尺寸小某某像素）
         self.horizontal_lines = pg.sprite.Group()  # 水平线组
         self.vertical_lines = pg.sprite.Group()    # 垂直线组
+        self.pipe_inner_colliders = pg.sprite.Group()  # 水管内部碰撞体组
         
         # 设置关卡数据
         if level_data is None:
@@ -25,8 +30,6 @@ class Level(pg.sprite.Sprite):
         # self.set_group()      # 组合所有碰撞体组
         # self.set_mario()      # 创建马里奥角色
         # self.set_enemies()    # 创建敌人
-        
-        
 
     def set_default_level_data(self):
         """设置默认关卡1的数据"""
@@ -60,6 +63,7 @@ class Level(pg.sprite.Sprite):
         # 清空现有的碰撞体
         self.horizontal_lines.empty()
         self.vertical_lines.empty()
+        self.pipe_inner_colliders.empty()
         
         # 设置地面
         for ground in level_data.get('ground', []):
@@ -79,7 +83,6 @@ class Level(pg.sprite.Sprite):
         self.set_mario(mario_data)      # 创建马里奥角色
 
         self.set_group()      # 组合所有碰撞体组
-                
 
     def set_ground(self, ground_data):
         """设置地面碰撞体
@@ -133,19 +136,10 @@ class Level(pg.sprite.Sprite):
         """创建马里奥角色实例"""
         self.mario = Mario()
         self.mario.pos = vec(mario_data[0], mario_data[1])  # 初始位置
-        
-    
+
     def set_enemies(self,level_data):
         """创建敌人实例"""
         self.enemies = pg.sprite.Group()  # 敌人组
-        
-        # 添加敌人2 - 放在马里奥右侧
-        # enemy2 = Enemy2((500, GROUND_HEIGHT - 70))  # 改为600，确保在屏幕内
-        # self.enemies.add(enemy2)
-        
-        # 添加敌人1 - 放在水管上
-        # enemy1 = Enemy1((40, GROUND_HEIGHT - 150))  # 放在水管顶部
-        # self.enemies.add(enemy1)
         
         for enemy in level_data.get('enemy', []):
             self.set_enemy(enemy)
@@ -196,7 +190,7 @@ class Level(pg.sprite.Sprite):
                         print("马里奥受伤！")
                         # 这里可以添加受伤效果
                         # self.mario.hurt()
-    
+
     def create_pipe(self, x, y, width, height, color=None):
         """
         创建水管碰撞体并添加到对应的组中
@@ -215,25 +209,85 @@ class Level(pg.sprite.Sprite):
         
         # 创建水管的三个线段碰撞体
         pipe_top = LineCollider(x, pipe_top_y, width, 'horizontal', color=color)
+        
+        # 创建水管边缘的竖直线，标记为水管边缘
         pipe_left = LineCollider(x, pipe_top_y, height, 'vertical', color=color)
+        pipe_left.is_pipe_edge = True  # 标记为水管边缘
+        
         pipe_right = LineCollider(x + width - 1, pipe_top_y, height, 'vertical', color=color)
+        pipe_right.is_pipe_edge = True  # 标记为水管边缘
+        
+        
+        
+        # 创建水管内部矩形碰撞体（比水管实际尺寸小1像素）
+        # inner_marginx = 1  # 内边距
+        #x无所谓
+        # inner_marginy = 6  # 内边距
+        #人工检测发现,y要大于5,如果数值方向能达到更大速度还需要继续调节 
+        inner_marginx,inner_marginy=self.inner_margin      
+        
+        
+        inner_x = x + inner_marginx
+        inner_y = pipe_top_y + inner_marginy
+        inner_width = width - 2 * inner_marginx
+        inner_height = height - 2 * inner_marginy
+        
+        # 确保内部尺寸至少为1x1
+        if inner_width < 1:
+            inner_width = 1
+        if inner_height < 1:
+            inner_height = 1
+            
+        pipe_inner = PipeInnerCollider(inner_x, inner_y, inner_width, inner_height)
         
         # 将碰撞体添加到对应的组中
         self.horizontal_lines.add(pipe_top)
         self.vertical_lines.add(pipe_left, pipe_right)
+        self.pipe_inner_colliders.add(pipe_inner)
         
-        return (pipe_top, pipe_left, pipe_right)
+        return (pipe_top, pipe_left, pipe_right, pipe_inner)
     
     def set_group(self):
         """将所有碰撞体组合在一起"""
         # 创建包含所有线段的组
         self.all_colliders = pg.sprite.Group()
         self.all_colliders.add(*self.horizontal_lines, *self.vertical_lines)
+        
+        # 添加水管内部碰撞体组
+        self.all_colliders.add(*self.pipe_inner_colliders)
 
     def check_collide(self):
         """检测马里奥与所有线段碰撞体的碰撞"""
         self.horizontal_collisions = pg.sprite.spritecollide(self.mario, self.horizontal_lines, False)
-        self.vertical_collisions = pg.sprite.spritecollide(self.mario, self.vertical_lines, False)
+        
+        # 自定义垂直碰撞检测，为水管边缘的线使用更大的检测范围
+        self.vertical_collisions = []
+        for line in self.vertical_lines:
+            # 检查这条线是否是水管边缘
+            if hasattr(line, 'is_pipe_edge') and line.is_pipe_edge:
+                # 为水管边缘的线创建一个扩展的碰撞检测区域
+                expanded_rect = line.rect.copy()
+                
+                
+                
+                
+                # 左右各扩展3像素，总共增加6像素的检测范围
+                expanded_rect.x -= self.collision_distance
+                expanded_rect.width += self.collision_distance*2
+                #未知功能
+                
+                
+                
+                # 如果马里奥与扩展区域碰撞，则添加到碰撞列表中
+                if self.mario.rect.colliderect(expanded_rect):
+                    self.vertical_collisions.append(line)
+            else:
+                # 对于普通垂直线，使用默认碰撞检测
+                if self.mario.rect.colliderect(line.rect):
+                    self.vertical_collisions.append(line)
+        
+        # 检测水管内部碰撞体的碰撞
+        self.pipe_inner_collisions = pg.sprite.spritecollide(self.mario, self.pipe_inner_colliders, False)
         
         self.on_ground = False
         for line in self.horizontal_collisions:
@@ -248,6 +302,9 @@ class Level(pg.sprite.Sprite):
         """处理所有碰撞"""
         # 先假设马里奥没有站在任何物体上
         self.mario.landing = False
+        
+        # 处理水管内部碰撞体的碰撞（水平方向）
+        self.adjust_pipe_inner_collisions()
         
         # 处理水平线碰撞（垂直方向） - 先处理这个，因为它会影响马里奥的位置
         self.adjust_horizontal_collisions()
@@ -288,6 +345,19 @@ class Level(pg.sprite.Sprite):
         if not found_ground:
             self.mario.landing = False
 
+    def adjust_pipe_inner_collisions(self):
+        """处理水管内部碰撞体的碰撞（水平方向）"""
+        for collider in self.pipe_inner_collisions:
+            # 水管内部碰撞体只处理水平碰撞
+            if self.mario.vel.x > 0:  # 向右移动
+                # 确保马里奥不会进入水管内部
+                self.mario.pos.x = collider.rect.left - self.mario.rect.width/2
+                self.mario.vel.x = 0
+            elif self.mario.vel.x < 0:  # 向左移动
+                # 确保马里奥不会进入水管内部
+                self.mario.pos.x = collider.rect.right + self.mario.rect.width/2
+                self.mario.vel.x = 0
+
     def adjust_vertical_collisions(self):
         """处理垂直线碰撞（水平方向）"""
         for line in self.vertical_collisions:
@@ -300,6 +370,9 @@ class Level(pg.sprite.Sprite):
                     self.ground_line.rect.left <= line.rect.x <= self.ground_line.rect.right and
                     abs(self.ground_line.rect.top - line.rect.y) < 5):
                     standing_on_connected_horizontal = True
+            
+            # 检查这条线是否是水管边缘
+            is_pipe_edge = hasattr(line, 'is_pipe_edge') and line.is_pipe_edge
             
             # 如果马里奥站在与这条垂直线相连的水平线上，允许他移动通过
             if standing_on_connected_horizontal:
@@ -317,13 +390,33 @@ class Level(pg.sprite.Sprite):
                     self.mario.pos.x = line.rect.right + self.mario.rect.width/2
                     self.mario.vel.x = 0
             else:
-                # 标准水平碰撞处理
-                if self.mario.vel.x > 0:  # 向右移动时碰撞
-                    self.mario.pos.x = line.rect.left - self.mario.rect.width/2
-                    self.mario.vel.x = 0
-                elif self.mario.vel.x < 0:  # 向左移动时碰撞
-                    self.mario.pos.x = line.rect.right + self.mario.rect.width/2
-                    self.mario.vel.x = 0
+                # 对于水管边缘的线，使用更大的碰撞距离
+                if is_pipe_edge:
+                    
+                    
+                    # 当马里奥距离水管边缘x像素时就触发碰撞
+                    #重要值
+                    collision_distance = self.collision_distance
+                    
+                    
+                    if self.mario.vel.x > 0:  # 向右移动
+                        if (self.mario.rect.right + collision_distance > line.rect.left and
+                            self.mario.rect.right - self.mario.vel.x <= line.rect.left):
+                            self.mario.pos.x = line.rect.left - self.mario.rect.width/2 - collision_distance
+                            self.mario.vel.x = 0
+                    elif self.mario.vel.x < 0:  # 向左移动
+                        if (self.mario.rect.left - collision_distance < line.rect.right and
+                            self.mario.rect.left - self.mario.vel.x >= line.rect.right):
+                            self.mario.pos.x = line.rect.right + self.mario.rect.width/2 + collision_distance
+                            self.mario.vel.x = 0
+                else:
+                    # 标准水平碰撞处理
+                    if self.mario.vel.x > 0:  # 向右移动时碰撞
+                        self.mario.pos.x = line.rect.left - self.mario.rect.width/2
+                        self.mario.vel.x = 0
+                    elif self.mario.vel.x < 0:  # 向左移动时碰撞
+                        self.mario.pos.x = line.rect.right + self.mario.rect.width/2
+                        self.mario.vel.x = 0
 
     def check_dead(self):
         """检查马里奥是否死亡"""
