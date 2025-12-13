@@ -22,12 +22,47 @@ class Mario(pg.sprite.Sprite):
         self.acc = vec(0, 0)  # 加速度向量
         self.landing = False  # 是否着陆标志
         self.dead = False  # 死亡标志
+        
+        
+        self.death_animation_time = 0  # 死亡动画计时器，不知道是什么意思
+        self.death_animation_duration = 1000  # 死亡动画持续时间（毫秒）
+        self.death_velocity_y = -15  # 死亡时向上的初速度
+        self.death_spin_speed = 10  # 死亡旋转速度
+        
+        
+        # 生命值系统
+        self.max_health = 100  # 最大生命值
+        self.health = self.max_health  # 当前生命值
+        self.health_regen_per_frame = 4  # 每帧恢复的生命值
+        self.last_regen_time = pg.time.get_ticks()  # 上次恢复生命值的时间
+        self.regen_interval = 16  # 恢复生命值的间隔（毫秒），大约60FPS
+        self.health_bar_width = 60  # 生命条宽度
+        self.health_bar_height = 8  # 生命条高度
 
     def update(self):
         """每帧更新马里奥状态"""
+        
+        # 如果已经死亡，执行死亡动画
+        if self.dead:
+            self.death_animation()
+            return
+        
         self.acc = vec(0, GRAVITY)  # 重置加速度，只保留重力
         
         keys = pg.key.get_pressed()  # 获取按键状态
+                
+        if keys[pg.K_r] and not self.dead:
+            #输入法需为英文
+            self.die()
+            return  # 死亡后不再处理其他逻辑
+        
+        # 生命值恢复系统
+        self.health_regen()
+        
+        # 检查生命值是否耗尽
+        if self.health <= 0 and not self.dead:
+            self.die()
+            return
         
         # 向右移动处理
         if keys[pg.K_RIGHT]:
@@ -95,7 +130,14 @@ class Mario(pg.sprite.Sprite):
         
         # 空中状态处理
         if not self.landing:
-            self.image_index = 4  # 切换到跳跃帧
+            if self.vel.x > 0:  # 如果已经在向右移动
+                self.image_index = 4  # 切换到跳跃帧
+            elif self.vel.x < 0:        # 如果已经在向左移动
+                self.image_index = 9  # 切换到跳跃帧
+            else :        
+                self.image_index = 10  # 切换到跳跃帧
+                
+    
         
         self.image = self.frames[self.image_index]  # 更新当前显示图像
         
@@ -107,8 +149,125 @@ class Mario(pg.sprite.Sprite):
         # 物理计算：位置更新（使用运动学公式）
         self.pos += self.vel#每一帧等于1秒,pos+vel 
 
-        # 更新矩形位置???
+        # 更新矩形位置
         self.rect.midbottom = self.pos
+
+    def health_regen(self):
+        """生命值恢复系统"""
+        current_time = pg.time.get_ticks()
+        
+        # 每隔一定时间恢复生命值
+        if current_time - self.last_regen_time > self.regen_interval:
+            # 恢复生命值，但不超过最大值
+            self.health += self.health_regen_per_frame
+            if self.health > self.max_health:
+                self.health = self.max_health
+            self.last_regen_time = current_time
+
+    def change_health(self, amount):
+        """
+        外部调用修改生命值的方法
+        
+        参数:
+            amount (int): 生命值变化量，正数为增加，负数为减少
+        """
+        self.health += amount
+        
+        # 限制生命值范围
+        if self.health > self.max_health:
+            self.health = self.max_health
+        elif self.health < 0:
+            self.health = 0
+            
+        print(f"马里奥生命值变化: {amount:+d}, 当前生命值: {self.health}")
+        # 如果生命值降到0以下，触发死亡
+        if self.health <= 0 and not self.dead:
+            self.die()
+            
+    def get_health_percentage(self):
+        """获取当前生命值百分比"""
+        return self.health / self.max_health
+    
+    def set_health_percentage(self,health):
+        '''设置生命值'''
+        self.health=health
+        
+    def s_hurt(self):
+        '''标准伤害'''
+        self.health = self.health - 4
+
+    def draw_health_bar(self, screen, x, y):
+        """
+        绘制生命值条（可选的UI功能）
+        
+        参数:
+            screen: Pygame屏幕表面
+            x, y: 生命条绘制的左上角坐标
+        """
+        # 计算生命条填充宽度
+        fill_width = int(self.health_bar_width * self.get_health_percentage())
+        
+        # 绘制生命条背景（红色）
+        pg.draw.rect(screen, (255, 0, 0), 
+                    (x, y, self.health_bar_width, self.health_bar_height))
+        # 绘制当前生命值（绿色）
+        pg.draw.rect(screen, (0, 255, 0), 
+                    (x, y, fill_width, self.health_bar_height))
+        
+        # 绘制生命条边框
+        pg.draw.rect(screen, (255, 255, 255), 
+                    (x, y, self.health_bar_width, self.health_bar_height), 1)
+        
+        # 显示生命值文字
+        font = pg.font.Font(None, 20)
+        health_text = font.render(f"HP: {self.health}/{self.max_health}", 
+                                 True, (255, 255, 255))
+        screen.blit(health_text, (x, y - 20))
+
+
+    def die(self):
+        """马里奥死亡"""
+        if not self.dead:
+            self.death_animation_time = pg.time.get_ticks()
+            # 设置死亡时的物理效果
+            self.vel.y = self.death_velocity_y  # 向上弹起
+            self.vel.x = 0  # 水平速度归零
+            self.death_animation()#完善后使用
+            print("马里奥死亡！按R键触发")
+            self.dead = True
+            
+
+    def death_animation(self):
+        """死亡动画,待完善,现在是一点作用也没有"""
+        current_time = pg.time.get_ticks()
+        elapsed_time = current_time - self.death_animation_time
+        
+        # 如果动画时间结束，不再更新位置
+        # if elapsed_time >= self.death_animation_duration:
+            # 可以在这里重置关卡或显示游戏结束画面
+            # return
+        
+        # 死亡动画期间的物理效果
+        # 重力仍然作用
+        self.vel.y += GRAVITY * 0.5  # 使用较小的重力，让死亡动画更夸张
+        
+        # 应用速度更新位置
+        self.pos += self.vel
+        
+        # 更新矩形位置
+        self.rect.midbottom = self.pos
+        
+        # 旋转效果（可选）
+        if elapsed_time < self.death_animation_duration / 2:
+            # 前半段时间旋转
+            rotation_angle = (elapsed_time * self.death_spin_speed) % 360
+            self.image = pg.transform.rotate(self.frames[self.image_index], rotation_angle)
+        else:
+            # 后半段时间逐渐消失
+            alpha = 255 - int(255 * (elapsed_time - self.death_animation_duration/2) / (self.death_animation_duration/2))
+            if alpha < 0:
+                alpha = 0
+            self.image.set_alpha(alpha)
 
     def calculate_animation_speed(self):
         """根据移动速度计算动画播放速度"""
@@ -173,6 +332,7 @@ class Mario(pg.sprite.Sprite):
 
         # 合并所有动画帧
         self.frames = self.right_frames + self.left_frames
+        self.frames.append(self.get_image(144+16, 32, 16, 16))# 跳跃帧
 
     def get_image(self, x, y, width, height):
         """从精灵表中提取单个图像

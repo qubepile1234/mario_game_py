@@ -1,37 +1,56 @@
 from enemy import *  # 导入精灵相关的所有类和函数
 from mario import *  # 导入精灵相关的所有类和函数
 from Collider import *  # 导入精灵相关的所有类和函数
+from level_data import *
 import random
 
 class Level(pg.sprite.Sprite):
     """使用线段碰撞体的关卡类"""
     
-    def __init__(self, level_data=None):
+    def __init__(self, level_data=level1_data):
         """初始化关卡，设置所有游戏元素
         
         参数:
             level_data: 关卡数据字典，如果为None则使用默认关卡1
         """
         # 初始化碰撞体组
-        self.collision_distance=2
+        self.collision_distance=PIPE_DISTANCE
                             # 当马里奥距离水管边缘x像素时就触发碰撞
-        self.inner_margin=(1,6)
+        self.inner_margin=INNER_MARGIN
                 # 创建水管内部矩形碰撞体（比水管实际尺寸小某某像素）
         self.horizontal_lines = pg.sprite.Group()  # 水平线组
         self.vertical_lines = pg.sprite.Group()    # 垂直线组
         self.pipe_inner_colliders = pg.sprite.Group()  # 水管内部碰撞体组
+        self.gold=0                                 #一开始没有金子，初始化
+        self.success=False                          #未发现princess
         
         # 设置关卡数据
-        if level_data is None:
-            self.set_default_level_data()
-        else:
-            self.set_level(level_data)
+        # if level_data is None:
+            # self.set_default_level_data()
+        # else:
+            # self.set_level(level_data)
+            
+        self.set_level(level_data)
             
         # self.set_group()      # 组合所有碰撞体组
         # self.set_mario()      # 创建马里奥角色
         # self.set_enemies()    # 创建敌人
 
-    def set_default_level_data(self):
+    def gold_plus(self):
+        '''加金子'''
+        self.gold = self.gold + 1
+    def get_gold_count(self):
+        '''返回金子数目'''
+        return self.gold
+    
+    def is_success(self):
+        '''查看是否成功'''
+        return self.success
+    # def restart_success(self):
+                # self.success=False
+
+
+    def set_default_level_data_not_use(self):
         """设置默认关卡1的数据"""
         level1 = {
             'ground': [[0, GROUND_HEIGHT, MAP_WIDTH, (0, 222, 0)]],
@@ -40,16 +59,21 @@ class Level(pg.sprite.Sprite):
                 [MAP_WIDTH-1, 0, HEIGHT, (0, 255, 255)]  # 右侧墙壁
             ],
             'pipe': [
-                [320, GROUND_HEIGHT, 40, 120, (221, 112, 112)],
-                [200, GROUND_HEIGHT, 83, 280, (22, 22, 131)]
+                [320+60, GROUND_HEIGHT, 40, 120, (221, 112, 112)],
+                [200+60, GROUND_HEIGHT, 83, 280, (22, 22, 131)]
             ],
             'enemy': [
-                [1,(40, GROUND_HEIGHT - 150),50,50],
+                [1,(120, GROUND_HEIGHT - 150),70,150],
                 [2,(20, GROUND_HEIGHT - 150),200,200],
                 [2,(500, GROUND_HEIGHT - 70),400,400],
+                [0,(520,GROUND_HEIGHT),20,20],
+                [0,(540,GROUND_HEIGHT),20,20],
+                [0,(570,GROUND_HEIGHT),20,20],
+                [0,(50,GROUND_HEIGHT),20,20],
+                [0,(70,GROUND_HEIGHT),20,20],
                # '''类型,位置,缩放比例w,h'''
             ],
-            'mario': [(WIDTH * 0.5), (GROUND_HEIGHT - 70)]
+            'mario': [(WIDTH * 0.5+200), (GROUND_HEIGHT - 70)]
         }
         self.set_level(level1)
         # 可能有level2但暂时搁置
@@ -60,6 +84,7 @@ class Level(pg.sprite.Sprite):
         参数:
             level_data: 关卡数据字典，包含'ground'、'wall'、'pipe'键
         """
+        # self.restart_success()
         # 清空现有的碰撞体
         self.horizontal_lines.empty()
         self.vertical_lines.empty()
@@ -159,6 +184,14 @@ class Level(pg.sprite.Sprite):
             enemy_type2 = Enemy2(enemy_data[1],enemy_data[2],enemy_data[3]) 
             enemy_type2.set_scale(enemy_data[2],enemy_data[3])
             self.enemies.add(enemy_type2)
+        elif(enemy_data[0]==0):
+            the_coin = coin(enemy_data[1],enemy_data[2],enemy_data[3]) 
+            # enemy_type2.set_scale(enemy_data[2],enemy_data[3])
+            self.enemies.add(the_coin)
+        elif(enemy_data[0]==-1):
+            the_princess = princess(enemy_data[1],enemy_data[2],enemy_data[3]) 
+            # enemy_type2.set_scale(enemy_data[2],enemy_data[3])
+            self.enemies.add(the_princess)
         
     def check_enemy_collisions(self):
         """检测马里奥与敌人的碰撞"""
@@ -178,18 +211,32 @@ class Level(pg.sprite.Sprite):
                     # 标记敌人死亡
                     enemy.dead = True
                     # 从enemies组中移除
-                    if enemy in self.enemies:
-                        self.enemies.remove(enemy)
-                    if enemy in self.all_enemies:
-                        self.all_enemies.remove(enemy)
+                    # if isinstance(enemy, (coin)):
+                        # self.gold_plus()
+                    self.remove_enemy(enemy)
                     print("踩到敌人！")
                 
                 # 马里奥碰到敌人侧面或上面（受伤）
                 else:
                     if not self.mario.dead:
-                        print("马里奥受伤！")
+                        if isinstance(enemy, (coin)):
+                            self.gold_plus()
+                            self.remove_enemy(enemy)
+                        
+                        elif isinstance(enemy, (princess)):
+                            self.success=True
+                        
+                        else:
+                            self.mario.s_hurt()
+                            print("马里奥受伤！")
                         # 这里可以添加受伤效果
                         # self.mario.hurt()
+                        
+    def remove_enemy(self,enemy):
+        if enemy in self.enemies:
+            self.enemies.remove(enemy)
+        if enemy in self.all_enemies:
+            self.all_enemies.remove(enemy)
 
     def create_pipe(self, x, y, width, height, color=None):
         """
@@ -230,7 +277,8 @@ class Level(pg.sprite.Sprite):
         inner_x = x + inner_marginx
         inner_y = pipe_top_y + inner_marginy
         inner_width = width - 2 * inner_marginx
-        inner_height = height - 2 * inner_marginy
+        # inner_height = height - 2 * inner_marginy
+        inner_height = height - 1 * inner_marginy
         
         # 确保内部尺寸至少为1x1
         if inner_width < 1:
@@ -239,6 +287,7 @@ class Level(pg.sprite.Sprite):
             inner_height = 1
             
         pipe_inner = PipeInnerCollider(inner_x, inner_y, inner_width, inner_height)
+        # pipe_inner = PipeInnerCollider(inner_x, inner_y+inner_marginy, inner_width, inner_height)
         
         # 将碰撞体添加到对应的组中
         self.horizontal_lines.add(pipe_top)
@@ -274,7 +323,7 @@ class Level(pg.sprite.Sprite):
                 # 左右各扩展3像素，总共增加6像素的检测范围
                 expanded_rect.x -= self.collision_distance
                 expanded_rect.width += self.collision_distance*2
-                #未知功能
+                #未知功能,待处理
                 
                 
                 
@@ -286,8 +335,33 @@ class Level(pg.sprite.Sprite):
                 if self.mario.rect.colliderect(line.rect):
                     self.vertical_collisions.append(line)
         
+        
+        
+        
+        
+        
+        
+        
         # 检测水管内部碰撞体的碰撞
-        self.pipe_inner_collisions = pg.sprite.spritecollide(self.mario, self.pipe_inner_colliders, False)
+        # self.pipe_inner_collisions = pg.sprite.spritecollide(self.mario, self.pipe_inner_colliders, False)
+        
+         # 检测水管内部碰撞体的碰撞
+        self.pipe_inner_collisions = []
+        for collider in self.pipe_inner_colliders:
+            # 使用实际的碰撞矩形而不是显示矩形
+            if hasattr(collider, 'get_collision_rect'):
+                collision_rect = collider.get_collision_rect()
+            else:
+                collision_rect = collider.rect
+                
+            if self.mario.rect.colliderect(collision_rect):
+                self.pipe_inner_collisions.append(collider)
+        
+        
+        
+        
+        
+        
         
         self.on_ground = False
         for line in self.horizontal_collisions:
@@ -323,8 +397,11 @@ class Level(pg.sprite.Sprite):
         for line in self.horizontal_collisions:
             # 从上方落到水平线上
             if (self.mario.vel.y > 0 and 
-                self.mario.rect.bottom > line.rect.top and
-                self.mario.rect.bottom - self.mario.vel.y <= line.rect.top):
+                self.mario.rect.bottom > line.rect.top  and
+                # self.mario.rect.bottom > line.rect.top - M_PLUS and
+                # self.mario.rect.bottom - self.mario.vel.y <= line.rect.top
+                self.mario.rect.bottom - self.mario.vel.y <= line.rect.top + M_PLUS
+                ):
                 
                 self.mario.acc.y = 0
                 self.mario.vel.y = 0

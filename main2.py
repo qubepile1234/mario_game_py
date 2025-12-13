@@ -38,13 +38,8 @@ class Game:
         self.show_congrats = False  # 是否显示祝贺文本
         self.congrats_start_time = 0  # 祝贺文本开始显示的时间
         self.game_ending = False  # 游戏正在结束中
-
-
-    def events_not_use(self):
-        """处理游戏事件"""
-        for event in pg.event.get():  # 遍历所有事件
-            if event.type == pg.QUIT:  # 如果点击关闭窗口
-                self.playing = False  # 结束游戏
+        self.debug=True             #因为通关后再按左右空格马里奥会继续在success动画里上升一段，猜测是elapsed_time的问题，
+        #但我们可以用一个小小变量即可解决，就是debug
 
 
 
@@ -82,7 +77,7 @@ class Game:
         elapsed_time = current_time - self.success_start_time
         
         # 第一阶段：马里奥缓缓上升（3秒）
-        if elapsed_time < 3000 and not self.show_congrats:
+        if elapsed_time < 3000 and not self.show_congrats and self.debug:
             # 计算上升进度（0到1）
             progress = elapsed_time / 3000.0
             
@@ -107,7 +102,7 @@ class Game:
             self.update_camera_for_success()
         
         # 第二阶段：显示祝贺文本（1秒）
-        elif elapsed_time >= 3000 and elapsed_time < 4000:
+        elif elapsed_time >= 3000 and elapsed_time < 4000 and self.debug:
             if not self.show_congrats:
                 self.show_congrats = True
                 self.congrats_start_time = current_time
@@ -121,11 +116,29 @@ class Game:
             
         # 第三阶段：游戏正常结束
         elif elapsed_time >= 4000:
-            if not self.game_ending:
+            # if not self.game_ending:
                 print("游戏正常结束！")
-                self.game_ending = True
-                self.game_over = True
-                self.playing = False
+
+                self.restart_success_value()
+               
+                # self.game_ending = True
+                # self.game_over = True
+                # self.playing = False
+                self.events()
+                
+
+    def restart_success_value(self):
+        # self.success_animation = False  # 是否正在播放成功动画
+        self.success_start_time = 0  # 成功动画开始时间
+        self.show_congrats = False  # 是否显示祝贺文本
+        self.congrats_start_time = 0  # 祝贺文本开始显示的时间
+        self.game_ending = False  # 游戏正在结束中
+        self.debug=False
+        
+    def success_over_event(self):
+        self.success_animation = False  # 是否正在播放成功动画
+        self.debug=True
+
 
     def update_camera_for_success(self):
         """在成功动画中更新摄像机位置"""
@@ -157,6 +170,9 @@ class Game:
                     self.switch_level(3)
                 elif event.key == pg.K_r:  # 按R键重新开始当前关卡
                     self.restart_current_level()
+                else:#不可去除，因为否则上下空格其他键回导致下一条语句被执行
+                    return 
+                self.success_over_event()
 
                 
     def switch_level(self, level_num):
@@ -179,7 +195,6 @@ class Game:
             # 重新初始化精灵组
             self.reset_groups()
             
-            self.level.restart_success()
             
             
             # 显示切换提示
@@ -193,6 +208,7 @@ class Game:
             
     def show_level_transition(self, level_num):
         """显示关卡切换提示"""
+        
         # 创建半透明覆盖层
         overlay = pg.Surface((WIDTH, HEIGHT), pg.SRCALPHA)
         overlay.fill((0, 0, 0, 150))  # 半透明黑色
@@ -255,35 +271,14 @@ class Game:
         self.level = Level(self.levels[1])  # 创建关卡实例
         
         
-        
         # 重置精灵组
         self.reset_groups()
         
         
          # 显示初始提示
         self.show_level_transition(1)
-        
-        
-        
-        
-        # 清空并重新填充 all_group
-        # self.all_group.empty()  # 清空所有精灵
-        
-        
-        # self.all_group.add(self.level.mario)  # 将马里奥添加到精灵组
-
-            
+                    
       
-        
-    # # 添加所有敌人到精灵组
-    #     if hasattr(self.level, 'enemies') and self.level.enemies:
-    #         #如果 self.level 有 enemies 属性，并且 enemies 属性不为空（有内容），则执行后面的代码"
-    #         for enemy in self.level.enemies:
-    #             self.all_group.add(enemy)
-        
-    #     # 添加所有碰撞体到精灵组
-    #     if hasattr(self.level, 'all_colliders'):
-    #         self.all_group.add(*self.level.all_colliders)
         
 
     def run(self):
@@ -297,51 +292,6 @@ class Game:
         # 游戏结束后显示结束画面
         self.show_end_screen()
               
-    def update1(self):
-        """更新游戏状态 - 支持双向摄像机移动"""
-        
-            # 双向摄像机跟随系统
-        self.update_camera()
-        if not self.game_over:
-            self.all_group.update()  # 更新所有精灵:马里奥状态
-            self.level.update()  # 更新关卡状态
-            
-            
-            # 双向摄像机跟随系统
-            # self.update_camera()
-            
-            # 检查马里奥是否死亡
-            if self.level.mario.dead:
-                self.game_over = True  # 标记游戏结束
-                self.playing = False   # 停止游戏主循环
-
-
-    def update2(self):
-        """更新游戏状态 - 支持双向摄像机移动"""
-        # 双向摄像机跟随系统
-        self.update_camera()
-        
-        if not self.game_over:
-            # 更新所有精灵
-            for sprite in self.all_group:
-                # 根据精灵类型调用不同的update方法
-                if isinstance(sprite, (Enemy1, Enemy2)):  # 如果是敌人
-                    sprite.update(self.level.horizontal_lines, self.level.vertical_lines)
-                elif isinstance(sprite, Mario):  # 如果是马里奥
-                    sprite.update()
-                # 其他精灵（如碰撞体）可能不需要update
-                # elif hasattr(sprite, 'update'):
-                    # sprite.update()
-            
-            # 更新关卡状态
-            self.level.update()
-            
-            # 检查马里奥是否死亡
-            if self.level.mario.dead:
-                self.game_over = True  # 标记游戏结束
-                self.playing = False   # 停止游戏主循环
-
-
 
 
     def update(self):
@@ -372,43 +322,6 @@ class Game:
                 self.game_over = True
                 self.playing = False
 
-
-    def update3333(self):
-        """更新游戏状态"""
-        # 更新摄像机
-        self.update_camera()
-        
-        if not self.game_over:
-            # 手动更新每个精灵（根据类型调用不同的update方法）
-            sprites_to_update = list(self.all_group.sprites())
-            for sprite in sprites_to_update:
-                if isinstance(sprite, (Enemy1, Enemy2)):  # 如果是敌人
-                    if not sprite.dead:  # 只有未死亡的敌人才更新
-                        sprite.update(self.level.horizontal_lines, self.level.vertical_lines)
-                elif isinstance(sprite, Mario):  # 如果是马里奥
-                    sprite.update()
-                # 碰撞体不需要update
-            
-            # 更新关卡状态（包括碰撞检测）
-            self.level.update()
-            
-            # 移除已死亡的敌人
-            dead_enemies = []
-            for sprite in sprites_to_update:
-                if isinstance(sprite, (Enemy1, Enemy2)):
-                    if sprite.dead:
-                        dead_enemies.append(sprite)
-            
-            for enemy in dead_enemies:
-                enemy.kill()  # 从所有组中移除
-                self.all_group.remove(enemy)
-                if enemy in self.level.enemies:
-                    self.level.enemies.remove(enemy)
-            
-            # 检查马里奥是否死亡
-            if self.level.mario.dead:
-                self.game_over = True  # 标记游戏结束
-                self.playing = False   # 停止游戏主循环
 
     def draw(self):
         """绘制游戏画面 - 修复版"""
@@ -509,49 +422,6 @@ class Game:
                 y = HEIGHT//2 + 150 * math.sin(math.radians(angle))
                 pg.draw.circle(self.screen, (255, 255, 0), (int(x), int(y)), star_radius)
             
-            
-            
-    def draw33(self):
-        """绘制游戏画面 - 修复版"""
-        if not self.game_over:
-            self.screen.fill(WHITE)
-            
-            # 1. 绘制背景（使用视口截取）
-            self.screen.blit(self.background, (0, 0), self.viewpoint)
-            
-            # 2. 手动绘制所有精灵，应用摄像机偏移
-            for sprite in self.all_group:
-                # 计算屏幕坐标：世界坐标 - 摄像机位置
-                screen_x = sprite.rect.x - self.viewpoint.x
-                screen_y = sprite.rect.y - self.viewpoint.y
-                
-                # 优化：只绘制在屏幕范围内的精灵
-                if self.is_sprite_visible(screen_x, screen_y, sprite.rect.width, sprite.rect.height):
-                    self.screen.blit(sprite.image, (screen_x, screen_y))
-            
-            # 3. 显示敌人数量（调试用）
-            font = pg.font.Font(None, 24)
-            enemy_count = sum(1 for sprite in self.all_group if isinstance(sprite, (Enemy1, Enemy2)))
-            enemy_text = font.render(f"Enemies: {enemy_count}", True, (255, 0, 0))
-            self.screen.blit(enemy_text, (10, 10))
-            
-            pg.display.flip()
-
-    def update_camera_not_use(self):
-        """更新摄像机位置 - 支持左右双向移动"""
-        
-        # 向右移动时的摄像机跟随
-        if self.level.mario.vel.x > 0:  # 向右移动
-            if self.level.mario.pos.x > WIDTH * 0.55 + self.viewpoint.x:
-                self.viewpoint.x += int(self.level.mario.vel.x * 1.5)
-        
-        # 向左移动时的摄像机跟随（新增）
-        elif self.level.mario.vel.x < 0:  # 向左移动
-            if self.level.mario.pos.x < WIDTH * 0.25 + self.viewpoint.x:
-                self.viewpoint.x += int(self.level.mario.vel.x * 1.5)  # 注意这里是加负值
-        
-        # 确保摄像机不会移出地图边界,待研究
-        self.clamp_camera_position()
 
 
     def update_camera(self):
@@ -571,137 +441,7 @@ class Game:
         # self.viewpoint.x += 1
 
 
-    def update_camera_not3(self):
-        """混合摄像机系统 - 结合预测和边界框"""
-        # 获取马里奥状态
-        mario_x = self.level.mario.pos.x
-        mario_vel_x = self.level.mario.vel.x
-        mario_acc_x = self.level.mario.acc.x
-        
-        # 基础目标位置（马里奥居中）
-        base_target = mario_x - WIDTH // 2
-        
-        # 预测偏移（基于速度和加速度）
-        prediction_strength = min(1.0, abs(mario_vel_x) / 15.0)  # 速度越快，预测越强
-        look_ahead_distance = 80 * prediction_strength  # 最大向前看80像素
-        
-        if mario_vel_x > 0:
-            predicted_target = base_target + look_ahead_distance
-        elif mario_vel_x < 0:
-            predicted_target = base_target - look_ahead_distance
-        else:
-            predicted_target = base_target
-        
-        # 边界框检查
-        mario_screen_x = mario_x - self.viewpoint.x
-        left_boundary = WIDTH * 0.25
-        right_boundary = WIDTH * 0.75
-        
-        # 如果马里奥接近边界，调整目标位置
-        if mario_screen_x < left_boundary:
-            boundary_correction = mario_screen_x - left_boundary
-            predicted_target += boundary_correction
-        elif mario_screen_x > right_boundary:
-            boundary_correction = mario_screen_x - right_boundary
-            predicted_target += boundary_correction
-        
-        # 限制摄像机位置
-        map_width = self.background.get_width()
-        final_target = max(0, min(predicted_target, map_width - WIDTH))
-        
-        # 动态平滑度（高速时响应更快）
-        base_smooth = 0.1
-        speed_factor = min(1.0, abs(mario_vel_x) / 20.0)
-        dynamic_smooth = base_smooth * (1.0 + speed_factor)
-        
-        # 应用平滑移动
-        self.viewpoint.x += (final_target - self.viewpoint.x) * dynamic_smooth
 
-
-    def update_camera_(self):
-        """高级摄像机系统 - 更多可调参数"""
-        # 获取马里奥状态
-        mario_x = self.level.mario.pos.x
-        mario_vel_x = self.level.mario.vel.x
-        
-        # 可调参数
-        CENTER_WEIGHT = 0.7          # 居中权重
-        PREDICTION_WEIGHT = 0.3      # 预测权重
-        MAX_LOOK_AHEAD = 100         # 最大向前看距离
-        BASE_SMOOTH = 0.1            # 基础平滑度
-        MAX_SMOOTH_BOOST = 2.0       # 最大平滑度提升
-        
-        # 基础目标位置（马里奥居中）
-        base_target = mario_x - WIDTH // 2
-        
-        # 预测目标
-        prediction_strength = min(1.0, abs(mario_vel_x) / 15.0)
-        look_ahead_distance = MAX_LOOK_AHEAD * prediction_strength
-        
-        if mario_vel_x > 0:
-            prediction_target = base_target + look_ahead_distance
-        elif mario_vel_x < 0:
-            prediction_target = base_target - look_ahead_distance
-        else:
-            prediction_target = base_target
-        
-        # 结合居中和预测
-        weighted_target = base_target * CENTER_WEIGHT + prediction_target * PREDICTION_WEIGHT
-        
-        # 边界框检查
-        mario_screen_x = mario_x - self.viewpoint.x
-        left_boundary = WIDTH * 0.25
-        right_boundary = WIDTH * 0.75
-        
-        # 边界修正
-        boundary_correction = 0
-        if mario_screen_x < left_boundary:
-            boundary_correction = mario_screen_x - left_boundary
-        elif mario_screen_x > right_boundary:
-            boundary_correction = mario_screen_x - right_boundary
-        
-        # 最终目标
-        final_target = weighted_target + boundary_correction
-        
-        # 限制摄像机位置
-        map_width = self.background.get_width()
-        final_target = max(0, min(final_target, map_width - WIDTH))
-        
-        # 动态平滑度
-        speed_factor = min(1.0, abs(mario_vel_x) / 20.0)
-        dynamic_smooth = BASE_SMOOTH * (1.0 + speed_factor * (MAX_SMOOTH_BOOST - 1.0))
-        
-        # 应用平滑移动
-        self.viewpoint.x += (final_target - self.viewpoint.x) * dynamic_smooth
-
-
-    def update_camera_not_use(self):
-        """更新摄像机位置 - 改进的摄像机跟随系统"""
-        
-        # 获取马里奥的当前位置和速度
-        mario_x = self.level.mario.pos.x
-        mario_vel_x = self.level.mario.vel.x
-        
-        # 计算马里奥在屏幕上的相对位置
-        mario_screen_x = mario_x - self.viewpoint.x
-        
-        # 摄像机跟随逻辑
-        if mario_vel_x > 0:  # 向右移动
-            # 当马里奥移动到屏幕右侧55%区域时，摄像机跟随
-            if mario_screen_x > WIDTH * 0.55:
-                # 平滑跟随：摄像机移动速度基于马里奥速度，但不完全相同
-                camera_speed = max(2, min(8, abs(mario_vel_x) * 1.2))
-                self.viewpoint.x += int(camera_speed)
-        
-        elif mario_vel_x < 0:  # 向左移动
-            # 当马里奥移动到屏幕左侧25%区域时，摄像机跟随
-            if mario_screen_x < WIDTH * 0.25:
-                # 平滑跟随：摄像机移动速度基于马里奥速度
-                camera_speed = max(2, min(8, abs(mario_vel_x) * 1.2))
-                self.viewpoint.x -= int(camera_speed)
-        
-        # 限制摄像机位置，确保不会超出地图边界
-        self.clamp_camera_position1()
 
     def clamp_camera_position(self):
         """限制摄像机位置，确保不会超出地图边界"""
@@ -719,23 +459,6 @@ class Game:
             self.viewpoint.x = min_camera_x
         elif self.viewpoint.x > max_camera_x:
             self.viewpoint.x = max_camera_x
-
-
-    def clamp_camera_position2(self):
-        """限制摄像机位置，确保不会超出地图边界+-20"""
-        # 摄像机左边界（不能小于0）
-        min_camera_x = 0 - 20#相机能看到地图边界-20
-        if self.viewpoint.x < min_camera_x:
-            self.viewpoint.x = min_camera_x
-
-        # 摄像机右边界（不能超过地图宽度减去屏幕宽度）
-        map_width = self.background.get_width()  # 背景图片宽度就是地图宽度
-        max_camera_x = map_width - WIDTH
-        # max_camera_x = map_width + 20 #相机能看到地图边界+20
-        if self.viewpoint.x > max_camera_x:
-            self.viewpoint.x = max_camera_x
-##############################################################
-
             
     def draw_not_use(self):
         """绘制游戏画面 - 优化版本"""
@@ -1042,7 +765,6 @@ class Game:
     def cleanup_before_restart(self):
         """在重新开始游戏前进行必要的清理工作"""
         # 这里可以添加任何需要在重新开始游戏前执行的清理代码
-        self.level.restart_success()
         pg.event.clear()  # 清除事件队列
         self.all_group.empty()  # 清空精灵组
         

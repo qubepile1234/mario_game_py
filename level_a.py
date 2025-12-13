@@ -18,7 +18,7 @@ class Level(pg.sprite.Sprite):
         
         # 设置关卡数据
         if level_data is None:
-            self.set_default_level_data()
+            self.set_level(level1_data)
         else:
             self.set_level(level_data)
             
