@@ -1,6 +1,6 @@
 # 导入自定义模块
 from level_data import *
-from level_c import *  # 导入简化关卡相关的所有类和函数
+from level_d import *  # 导入简化关卡相关的所有类和函数
 from mario import *  # 导入精灵相关的所有类和函数
 from Collider import *  # 导入精update灵相关的所有类和函数
 import math  # 用于数学计算和旋转

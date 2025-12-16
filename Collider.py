@@ -182,7 +182,8 @@ class PipeInnerCollider(Collider):
             
             # 计算目标尺寸（包含空气贴图部分）
             target_width = width
-            target_height = height + margin_y
+            target_height = height + margin_y*2 + 1
+            # target_height = height
             
             # 创建目标Surface
             self.image = pg.Surface((target_width, target_height), pg.SRCALPHA).convert_alpha()
@@ -212,7 +213,8 @@ class PipeInnerCollider(Collider):
             self.image.fill((0, 0, 0, 255))  # 黑色，不透明
         
         # 碰撞体矩形（实际有碰撞的区域）
-        self.collision_rect = pg.Rect(x, y, width, height)
+        self.collision_rect = pg.Rect(x, y, 0, 0)
+        # self.collision_rect = pg.Rect(x, y, width, height)
         
         # 显示矩形（包含空气贴图部分）
         self.display_rect = pg.Rect(x, y - margin_y, width, height + margin_y)
@@ -234,3 +236,49 @@ class PipeInnerCollider(Collider):
     def get_collision_rect(self):
         """获取实际碰撞的矩形区域"""
         return self.collision_rect
+    
+
+class PipeInnerCollider_test(Collider):
+    """水管内部碰撞体类，用于防止马里奥进入水管内部"""
+    
+    def __init__(self, x, y, width, height, image_path="1.jpg"):
+        """
+        初始化水管内部碰撞体
+        
+        参数:
+            x, y (int): 水管内部左上角坐标
+            width (int): 水管内部宽度
+            height (int): 水管内部高度
+            image_path (str): 贴图文件路径，默认为"./1.jpg"
+        """
+        pg.sprite.Sprite.__init__(self)  # 调用父类构造函数
+        
+        # try:
+            # 尝试加载图片
+            # self.image = pg.image.load(image_path).convert_alpha()
+        #     self.image = load_image(image_path).convert_alpha()
+            
+        #     # 如果图片尺寸与需求不符，缩放图片
+        #     if self.image.get_width() != width or self.image.get_height() != height:
+        #         self.image = pg.transform.scale(self.image, (width, height))
+                
+        # except (FileNotFoundError, pg.error):
+        #     # 如果图片加载失败，创建黑色矩形作为后备
+        #     print(f"警告: 无法加载图片 {image_path}，使用黑色矩形代替")
+        #     self.image = pg.Surface((width, height)).convert()
+        #     self.image.fill((0, 0, 0))  # 黑色
+        color=(0,0,0)
+        self.image=pg.Surface((0,0)).convert()
+        # self.image=pg.Surface((width,height)).convert()
+        self.image.fill(color)
+        
+        self.rect = self.image.get_rect()  # 获取矩形区域
+        self.rect.x = x  # 设置x坐标
+        self.rect.y = y  # 设置y坐标
+        
+        # 标记为水管内部碰撞体
+        self.is_pipe_inner = True
+        self.only_horizontal = True  # 只处理水平碰撞
+        # self.image_path = image_path  # 保存图片路径，以便后续可能需要重载
+        
+        
